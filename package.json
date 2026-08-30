@@ -5,6 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "test": "node --test tests/*.test.js",
+    "test:unit": "node --test tests/*.test.js",
+    "check:syntax": "node scripts/check_syntax.mjs",
+    "ci": "npm run check:syntax && npm test",
     "bybit:smoke": "node scripts/smoke_bybit_eu.mjs"
   },
   "dependencies": {
