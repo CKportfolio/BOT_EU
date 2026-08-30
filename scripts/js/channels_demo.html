@@ -1,0 +1,4086 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Channels demo</title>
+  <style>
+    body { margin: 0; font-family: system-ui, Arial; background: #000000; color: #e8eef7; overflow-x: auto; }
+    .wrap { padding: 10px 10px 20px; min-width: 1500px; }
+    canvas { width: 100%; height: 256px; background: #000000; border-radius: 12px; display:block; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin: 10px 0; }
+    .pill { padding: 6px 10px; border-radius: 999px; background:#000000; border:1px solid rgba(255,255,255,0.16); font-size: 13px; }
+    .pillToggle { display:inline-flex; align-items:center; gap:8px; }
+    .pillToggle input { margin: 0; }
+    a.pill { color: #d7ecff; text-decoration: none; display:inline-block; }
+    button { padding: 8px 12px; border-radius: 10px; border: 0; background:#2a3d57; color:#e8eef7; cursor:pointer; }
+    button:hover { filter:brightness(1.1); }
+    .muted { opacity: .8; }
+    .cornerBrand {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(180px, 22vw, 300px);
+      min-height: 42px;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .cornerBrand img {
+      width: auto;
+      height: 52px;
+      max-width: 100%;
+      object-fit: contain;
+      display: block;
+      filter: none;
+      mix-blend-mode: normal;
+    }
+    #link4h {
+      background: linear-gradient(180deg, #2e4c72 0%, #203754 100%);
+      border: 1px solid rgba(168, 210, 255, 0.65);
+      font-weight: 700;
+      box-shadow: 0 0 0 1px rgba(87, 145, 207, 0.18) inset;
+    }
+    #link4h:hover { filter: brightness(1.16); }
+    .zoomBtns {
+      display: inline-flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .zoomBtn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .timelineWrap {
+      margin-top: 2px;
+      padding: 6px 10px 4px;
+      border-radius: 10px;
+      background: rgba(8, 8, 8, 0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+    .historyWrap {
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(8, 8, 8, 0.88);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+    .historyGrid {
+      display: grid;
+      grid-template-columns: 220px minmax(300px, 1fr) minmax(300px, 1fr);
+      gap: 8px;
+      align-items: end;
+    }
+    .historyField {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+      opacity: .92;
+    }
+    .historyField input,
+    .historyField select {
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: #101a29;
+      color: #e8eef7;
+      padding: 0 10px;
+    }
+    .historyActions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .dangerBtn {
+      margin-left: auto;
+      background: linear-gradient(180deg, #6b1e1e 0%, #431313 100%);
+      border: 1px solid rgba(255, 148, 148, 0.45);
+      color: #ffdede;
+      font-weight: 700;
+    }
+    .dangerBtn:hover { filter: brightness(1.1); }
+    .historyHint {
+      font-size: 12px;
+      opacity: .82;
+      margin-top: 8px;
+    }
+    .timelineHead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      opacity: .9;
+      margin-bottom: 4px;
+    }
+    .timelineSliders {
+      position: relative;
+      height: 16px;
+    }
+    .timelineSliders input[type="range"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      margin: 0;
+      pointer-events: none;
+      background: transparent;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 16px;
+    }
+    .timelineSliders input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+    }
+    .timelineSliders input[type="range"]::-moz-range-track {
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+    }
+    .timelineSliders input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-top: -4px;
+      border: 1px solid rgba(255,255,255,0.8);
+      background: #74b6ff;
+      pointer-events: auto;
+      cursor: ew-resize;
+    }
+    .timelineSliders input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.8);
+      background: #74b6ff;
+      pointer-events: auto;
+      cursor: ew-resize;
+    }
+    .toggleDock {
+      position: static;
+      margin-top: 10px;
+      z-index: 1;
+      border-radius: 12px;
+      background: #04180f;
+      border: 1px solid rgba(255,255,255,0.10);
+      padding: 10px;
+      backdrop-filter: none;
+    }
+    .toggleTitle { font-size: 13px; opacity: .82; margin-bottom: 8px; }
+    .toggleGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 12px; }
+    .tick { display:flex; gap:8px; align-items:flex-start; font-size: 13px; }
+    .tick input { margin-top: 2px; }
+    .tick small { display:block; opacity: .72; font-size: 11px; margin-top: 2px; }
+    .tabRow { display:flex; gap:8px; margin: 4px 0 8px; }
+    .tabBtn {
+      padding: 7px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: #132033;
+      color:#e8eef7;
+      cursor:pointer;
+      font-size: 13px;
+    }
+    .tabBtn.active { background:#2a3d57; border-color: rgba(147,198,255,0.55); }
+    .panelHidden { display:none; }
+    .topToolbar { display: none; }
+    .tabRow { display: none; }
+    .toggleDock { display: none; }
+    .priceMeta { font-size: 13px; opacity:.86; margin: 6px 0; }
+    .priceGrid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+    .priceMainWrap {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 10px;
+      min-width: 0;
+    }
+    .priceBigWrap {
+      min-width: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .signalGrid { display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:10px; margin-top: 10px; background:#04180f; border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:10px; }
+    .signalCard {
+      background:#000000;
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .signalCard h4 { margin: 0 0 8px; font-size: 13px; }
+    .signalHead { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom: 8px; }
+    .signalValue { font-weight:700; color:#cfe9ff; }
+    .inlineAction { margin-left: auto; padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+    .inlineFlagToggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: #d3f6e6;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .inlineFlagToggle input {
+      margin: 0;
+      transform: translateY(1px);
+    }
+    .metricsCols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 12px; }
+    .metricCol { display: grid; gap: 6px; }
+    .metricLine { display: inline-flex; align-items: baseline; gap: 8px; font-size: 13px; }
+    .metricLine .k { opacity: .9; }
+    .metricLine .v { font-weight: 700; color: #cfe9ff; }
+    .legendWrap { display:none; }
+    .legendPills { display:none; }
+    .copyActionBtn {
+      margin-left: auto;
+      background: linear-gradient(180deg, #4aa3ff 0%, #2f6fe0 100%);
+      border: 1px solid rgba(176, 220, 255, 0.85);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.12) inset;
+      color: #f2fbff;
+      font-weight: 700;
+      padding: 8px 12px;
+    }
+    .copyActionBtn:hover { filter: brightness(1.12); }
+    .priceCard {
+      background:#000000;
+      border:1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .priceCardWide { grid-column: 1 / -1; }
+    .priceCard h4 { margin: 0 0 8px; font-size: 13px; opacity:.9; }
+    .priceList { display:grid; gap:6px; }
+    .priceRow { display:flex; justify-content:space-between; gap:8px; font-size: 12.5px; }
+    .priceRow span:first-child { opacity:.86; }
+    .priceRow span:last-child { font-weight: 600; color:#cfe9ff; }
+    .bigSplit {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(300px, 1fr));
+      gap: 10px;
+    }
+    .bigCol {
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 8px;
+    }
+    #panelPoints { background:#04180f; border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:10px; margin-top:0; }
+    .metricToggle { margin-right: 6px; transform: translateY(1px); }
+    .groupToggleLabel { display:inline-flex; align-items:center; gap:6px; font-size:12px; opacity:.95; }
+    .groupToggleLabel input { margin:0; transform: translateY(1px); }
+    .bigCol h5 { margin: 0 0 8px; font-size: 12.5px; opacity: .92; }
+    .loadingOverlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8, 12, 18, 0.72);
+      z-index: 60;
+    }
+    .loadingCard {
+      width: min(540px, 92vw);
+      border-radius: 14px;
+      background: #0f1620;
+      border: 1px solid rgba(255,255,255,0.10);
+      padding: 14px;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.35);
+    }
+    .loadingHead { display:flex; align-items:center; gap:10px; font-size: 15px; margin-bottom: 10px; }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #8ac6ff;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .stepList { margin: 0; padding-left: 18px; display:grid; gap:5px; font-size: 13px; opacity: .9; }
+    .stepDone { color: #84f0b3; }
+    .progressBar {
+      height: 8px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progressFill {
+      height: 100%;
+      width: 8%;
+      background: linear-gradient(90deg, #6db6ff, #9f7dff);
+      transition: width 220ms ease;
+    }
+
+    .botUiLayout {
+      display: grid;
+      grid-template-columns: minmax(760px, 2fr) minmax(380px, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+    .chartCol,
+    .sideCol {
+      min-width: 0;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .chartCol canvas {
+      min-height: 470px;
+      height: 470px;
+    }
+    .cmdPanel,
+    .linePanel,
+    .ordersPanel,
+    .logsPanel {
+      background: #04180f;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 10px;
+      min-height: 0;
+    }
+    .panelTitle {
+      font-size: 12px;
+      opacity: .9;
+      margin-bottom: 8px;
+      letter-spacing: 0.2px;
+    }
+    .panelHeadRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .panelToggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      opacity: .9;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .panelToggle input { margin: 0; }
+    .logsToggles {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .timelineHeadRight {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btnResetY {
+      padding: 4px 9px;
+      border-radius: 8px;
+      border: 1px solid rgba(147,198,255,0.55);
+      background: #132033;
+      color: #e8eef7;
+      font-size: 11.5px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .btnResetY:hover { filter: brightness(1.1); }
+    .monoPanel {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #d9f2e8;
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 8px;
+      max-height: 380px;
+      overflow: auto;
+    }
+    .summaryLine { display: block; }
+    .summaryLine.positive { color: #8bf0a3; font-weight: 700; }
+    .summaryLine.negative { color: #ff9393; font-weight: 700; }
+    .summaryLine.buyVal { color: #8bf0a3; font-weight: 700; }
+    .summaryLine.sellVal { color: #ff9393; font-weight: 700; }
+    .summaryTokenBuy { color: #8bf0a3; font-weight: 700; }
+    .summaryTokenSell { color: #ff9393; font-weight: 700; }
+    .summaryTokenPctPos { color: #8bf0a3; font-weight: 700; }
+    .summaryTokenPctNeg { color: #ff9393; font-weight: 700; }
+    .summaryTokenQuote { color: #6cd4ff; font-weight: 700; }
+    .ordersPanel { min-height: 210px; }
+    .cmdPanel .ordersPanel {
+      margin-top: 10px;
+      min-height: 210px;
+      background: #000000;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 8px;
+    }
+    .logsPanel { min-height: 180px; }
+    .logsPanelFull {
+      grid-column: 1 / -1;
+    }
+    .ordersTable {
+      display: grid;
+      gap: 4px;
+      max-height: 300px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .orderRow {
+      display: grid;
+      grid-template-columns: 52px 92px 1fr 1fr 22px;
+      gap: 6px;
+      align-items: center;
+      padding: 4px 6px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.07);
+      font-size: 11.5px;
+    }
+    .orderRow.sell { border-color: rgba(255, 120, 120, 0.25); }
+    .orderRow.buy { border-color: rgba(120, 220, 140, 0.25); }
+    .orderSide.sell { color: #ff9393; font-weight: 700; }
+    .orderSide.buy { color: #8bf0a3; font-weight: 700; }
+    .orderNowRow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 3px 6px;
+      border-radius: 6px;
+      background: rgba(80,140,220,0.10);
+      border: 1px solid rgba(100,170,255,0.18);
+      font-size: 11.5px;
+      color: #6cd4ff;
+      font-weight: 700;
+    }
+    .orderEditBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px; height: 16px;
+      border: none;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      cursor: pointer;
+      color: #aaa;
+      font-size: 11px;
+      padding: 0;
+      margin-left: 2px;
+      vertical-align: middle;
+      transition: background .15s, color .15s;
+    }
+    .orderEditBtn:hover { background: rgba(100,180,255,0.25); color: #fff; }
+    .orderDeleteBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px; height: 18px;
+      border: none;
+      background: rgba(255,80,80,0.10);
+      border-radius: 4px;
+      cursor: pointer;
+      color: #ff7070;
+      font-size: 13px;
+      padding: 0;
+      transition: background .15s, color .15s;
+    }
+    .orderDeleteBtn:hover { background: rgba(255,60,60,0.35); color: #fff; }
+    .orderCellEditable { display: inline-flex; align-items: center; gap: 2px; }
+    .manualOrderPanel {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: grid;
+      gap: 6px;
+    }
+    .manualOrderRow {
+      display: grid;
+      grid-template-columns: 84px 1fr 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+    .manualOrderPanel select,
+    .manualOrderPanel input {
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: #101a29;
+      color: #e8eef7;
+      padding: 0 8px;
+      font-size: 12px;
+    }
+    .manualOrderBtn {
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid rgba(120, 220, 140, 0.35);
+      background: linear-gradient(180deg, #1e5b34 0%, #154026 100%);
+      color: #dff7e8;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .manualOrderBtn:hover { filter: brightness(1.08); }
+    .manualOrderHint {
+      font-size: 11px;
+      opacity: .78;
+    }
+
+    @media (max-width: 1500px) {
+      .logsPanelFull { grid-column: auto; }
+      .priceGrid { grid-template-columns: 1fr; }
+      .priceMainWrap { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+      .historyGrid { grid-template-columns: 1fr; }
+      .wrap { min-width: 0; }
+      .manualOrderRow { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .wrap { padding: 6px; }
+      .chartCol canvas { height: 220px; min-height: 180px; }
+      .row { gap: 6px; }
+      .pill { font-size: 11px; padding: 4px 8px; }
+      button { font-size: 12px; padding: 6px 8px; }
+      .historyActions { flex-direction: column; align-items: stretch; }
+      .historyActions button,
+      .historyActions input { width: 100%; max-width: none !important; box-sizing: border-box; }
+      .priceMainWrap { grid-template-columns: 1fr; }
+      .bigSplit { grid-template-columns: 1fr; }
+      .signalGrid { grid-template-columns: 1fr; }
+      .metricsCols { grid-template-columns: 1fr 1fr; }
+      .orderRow { grid-template-columns: 40px 72px 1fr 1fr 22px; font-size: 10.5px; }
+      .manualOrderRow { grid-template-columns: 1fr 1fr; }
+      .manualOrderPanel select,
+      .manualOrderPanel input { font-size: 11px; }
+      .monoPanel { font-size: 11px; max-height: 320px; }
+      .logsToggles { gap: 6px; }
+      .panelToggle { font-size: 10.5px; }
+      .cornerBrand { display: none; }
+      .zoomBtns { margin-left: 0; }
+      .zoomBtn { width: 36px; height: 36px; }
+      .timelineSliders input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -6px; }
+      .timelineSliders input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row topToolbar">
+      <button id="btnReload">Reload data</button>
+      <button id="btnReset">Reset zoom</button>
+      <button id="btnSave">Save PNG</button>
+      <button id="btnAddWatch">Obserwuj kolejną walutę</button>
+      <label class="pill pillToggle"><input id="toggleScreens" type="checkbox" /> Zrzuty JPG</label>
+      <a class="pill" id="link4h" href="/channels_4h_demo.html">Podgląd 4h ↗</a>
+      <span class="pill" id="meta">loading…</span>
+      <div class="zoomBtns">
+        <button id="btnZoomOut" class="zoomBtn" title="Oddal">−</button>
+        <button id="btnZoomIn" class="zoomBtn" title="Przybliż">+</button>
+      </div>
+      <div class="cornerBrand" id="cornerBrand">
+        <img src="/files/kanalarz.png" alt="Kanalarz" />
+      </div>
+    </div>
+    <div class="tabRow">
+      <button id="tabChart" class="tabBtn active">Wykres</button>
+      <button id="tabPoints" class="tabBtn">Punkty cenowe</button>
+    </div>
+
+    <div id="panelChart">
+      <div style="margin-bottom:6px;">
+        <button id="btnTogglePoints" type="button" class="btnResetY" style="font-size:11px;">Punkty cenowe ▾</button>
+      </div>
+      <div id="panelPoints" class="linePanel panelHidden">
+        <div class="priceMeta" id="priceMeta">Punkty cenowe z linii i kanałów</div>
+        <div class="priceGrid" id="priceGrid"></div>
+      </div>
+
+      <div class="historyWrap">
+        <div class="historyGrid">
+          <label class="historyField">
+            <span>Interwał świec</span>
+            <select id="historyTf">
+              <option value="5" selected>5m</option>
+            </select>
+          </label>
+          <label class="historyField">
+            <span>Od (lokalnie)</span>
+            <input id="historyFrom" type="datetime-local" />
+          </label>
+          <label class="historyField">
+            <span>Do (lokalnie)</span>
+            <input id="historyTo" type="datetime-local" />
+          </label>
+        </div>
+        <div class="historyActions" style="margin-top:8px;">
+          <button id="btnRangeCsv">Ustaw zakres z CSV 5m</button>
+          <button id="btnLoadPeriod">Wczytaj świece z zakresu</button>
+          <button id="btnTradeHistory">Historia transakcji</button>
+          <button id="btnClearOrders" class="dangerBtn">Usuń zlecenia</button>
+          <button id="btnRegrid" class="dangerBtn">Regrid</button>
+          <input id="inpOrderQuoteValue" type="number" step="any" min="0" placeholder="ORDER_QUOTE_VALUE" style="max-width:170px;" />
+          <button id="btnSetOrderQuoteValue" type="button">Ustaw ORDER_QUOTE_VALUE</button>
+          <input id="inpMicroSpacingPct" type="number" step="any" min="0" placeholder="MICRO_SPACING_PCT" style="max-width:170px;" />
+          <button id="btnSetMicroSpacingPct" type="button">Ustaw MICRO_SPACING_PCT</button>
+        </div>
+        <div class="historyHint" id="historyHint">Zakres można ustawić z pliku logs/market_history_5m.csv, potem dociągnąć świece 5m z Bybit i wyświetlić je na wykresie.</div>
+      </div>
+      <div class="botUiLayout">
+        <div class="chartCol">
+          <div class="timelineWrap">
+            <div class="timelineHead">
+              <span id="timelineFromInfo">Od —</span>
+              <div class="timelineHeadRight">
+                <span id="timelineInfo">Do —</span>
+                <button id="btnResetY" class="btnResetY" type="button">Reset Y</button>
+              </div>
+            </div>
+            <div class="timelineSliders">
+              <input id="timelineStart" type="range" min="0" max="100" value="0" step="1" />
+              <input id="timelineEnd" type="range" min="0" max="100" value="100" step="1" />
+            </div>
+          </div>
+          <canvas id="cv" width="1600" height="560"></canvas>
+          <div id="legend" class="legendPills"></div>
+        </div>
+
+        <div class="sideCol">
+          <div class="cmdPanel">
+            <pre id="cmdSummaryPre" class="monoPanel">Ładowanie…</pre>
+
+            <div class="ordersPanel">
+              <div class="panelHeadRow">
+                <div class="panelTitle" style="margin-bottom:0;">Zlecenia</div>
+                <label class="panelToggle"><input id="toggleOrderLayer" type="checkbox" checked /> linie na wykresie</label>
+              </div>
+              <div id="ordersTable" class="ordersTable"></div>
+              <div class="manualOrderPanel">
+                <div class="manualOrderRow">
+                  <select id="manualOrderSide" aria-label="Side">
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                  </select>
+                  <input id="manualOrderPrice" type="number" step="any" min="0" placeholder="Price" aria-label="Price" />
+                  <input id="manualOrderValue" type="number" step="any" min="0" placeholder="Value (quote)" aria-label="Value" />
+                  <button id="btnManualPlaceOrder" class="manualOrderBtn" type="button">place order</button>
+                </div>
+                <div class="manualOrderHint">Value jest w walucie quote (np. USDT). Qty zostanie policzone jako Value / Price.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="logsPanel logsPanelFull" style="margin-top:10px;">
+        <div class="panelHeadRow">
+          <div class="panelTitle" style="margin-bottom:0;">Logi</div>
+          <div class="logsToggles">
+            <label class="panelToggle"><input id="toggleLogsHeartbeat" type="checkbox" checked /> heartbeat</label>
+            <label class="panelToggle"><input id="toggleLogsState" type="checkbox" checked /> stan bota (o)</label>
+            <label class="panelToggle"><input id="toggleLogsFills" type="checkbox" checked /> fills</label>
+            <label class="panelToggle"><input id="toggleLogsCounter" type="checkbox" checked /> counter</label>
+            <label class="panelToggle"><input id="toggleLogsWarnErr" type="checkbox" checked /> warn/error</label>
+            <label class="panelToggle"><input id="toggleLogsOther" type="checkbox" checked /> reszta</label>
+          </div>
+        </div>
+        <pre id="logsPre" class="monoPanel"></pre>
+        <div style="margin-top:7px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <button id="btnCleanSession" type="button"
+            title="Wyczyść sesję: zresetuj liczniki fills i flagi na wykresie. Bota NIE restartuje."
+            style="padding:5px 12px; font-size:12px; border-radius:8px;
+                   background:linear-gradient(180deg,#3a0000 0%,#250000 100%);
+                   border:1px solid rgba(255,70,70,0.5); color:#ff9090; font-weight:700;">
+            🧹 Clean Session
+          </button>
+          <div style="display:flex; gap:8px;">
+            <button id="btnReloadConfig" type="button" title="Przeładuj config.js w działającej instancji bota (bez restartu)"
+              style="padding:5px 12px; font-size:12px; border-radius:8px;
+                     background:linear-gradient(180deg,#1e3a1e 0%,#122a12 100%);
+                     border:1px solid rgba(100,220,100,0.45); color:#a8e6a8; font-weight:700;">
+              🔄 Reload Config
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toggleDock">
+      <div class="toggleTitle">Warstwy wizualizacji — zaznacz, co ma być widoczne</div>
+      <div class="toggleGrid" id="toggleGrid"></div>
+    </div>
+
+    <div class="loadingOverlay" id="loadingOverlay">
+      <div class="loadingCard">
+        <div class="loadingHead"><span class="spinner"></span><strong id="loadingTitle">Wczytywanie danych…</strong></div>
+        <ol class="stepList" id="loadingSteps"></ol>
+        <div class="progressBar"><div class="progressFill" id="loadingFill"></div></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const cv = document.getElementById("cv");
+const g = cv.getContext("2d");
+
+const metaEl = document.getElementById("meta");
+const legendEl = document.getElementById("legend");
+const toggleGridEl = document.getElementById("toggleGrid");
+const loadingOverlayEl = document.getElementById("loadingOverlay");
+const loadingTitleEl = document.getElementById("loadingTitle");
+const loadingStepsEl = document.getElementById("loadingSteps");
+const loadingFillEl = document.getElementById("loadingFill");
+const link4hEl = document.getElementById("link4h");
+const toggleScreensEl = document.getElementById("toggleScreens");
+const cornerBrandEl = document.getElementById("cornerBrand");
+const panelChartEl = document.getElementById("panelChart");
+const panelPointsEl = document.getElementById("panelPoints");
+const tabChartEl = document.getElementById("tabChart");
+const tabPointsEl = document.getElementById("tabPoints");
+const timelineStartEl = document.getElementById("timelineStart");
+const timelineEndEl = document.getElementById("timelineEnd");
+const timelineFromInfoEl = document.getElementById("timelineFromInfo");
+const timelineInfoEl = document.getElementById("timelineInfo");
+const btnZoomInEl = document.getElementById("btnZoomIn");
+const btnZoomOutEl = document.getElementById("btnZoomOut");
+const btnResetYEl = document.getElementById("btnResetY");
+const priceMetaEl = document.getElementById("priceMeta");
+const priceGridEl = document.getElementById("priceGrid");
+const signalGridEl = document.getElementById("signalGrid");
+const historyTfEl = document.getElementById("historyTf");
+const historyFromEl = document.getElementById("historyFrom");
+const historyToEl = document.getElementById("historyTo");
+const btnRangeCsvEl = document.getElementById("btnRangeCsv");
+const btnLoadPeriodEl = document.getElementById("btnLoadPeriod");
+const btnTradeHistoryEl = document.getElementById("btnTradeHistory");
+const btnClearOrdersEl = document.getElementById("btnClearOrders");
+const btnRegridEl = document.getElementById("btnRegrid");
+const inpOrderQuoteValueEl = document.getElementById("inpOrderQuoteValue");
+const btnSetOrderQuoteValueEl = document.getElementById("btnSetOrderQuoteValue");
+const inpMicroSpacingPctEl = document.getElementById("inpMicroSpacingPct");
+const btnSetMicroSpacingPctEl = document.getElementById("btnSetMicroSpacingPct");
+const historyHintEl = document.getElementById("historyHint");
+const cmdSummaryPreEl = document.getElementById("cmdSummaryPre");
+const ordersTableEl = document.getElementById("ordersTable");
+const manualOrderSideEl = document.getElementById("manualOrderSide");
+const manualOrderPriceEl = document.getElementById("manualOrderPrice");
+const manualOrderValueEl = document.getElementById("manualOrderValue");
+const btnManualPlaceOrderEl = document.getElementById("btnManualPlaceOrder");
+const logsPreEl = document.getElementById("logsPre");
+const toggleOrderLayerEl = document.getElementById("toggleOrderLayer");
+const toggleLogsHeartbeatEl = document.getElementById("toggleLogsHeartbeat");
+const toggleLogsStateEl = document.getElementById("toggleLogsState");
+const toggleLogsFillsEl = document.getElementById("toggleLogsFills");
+const toggleLogsCounterEl = document.getElementById("toggleLogsCounter");
+const toggleLogsWarnErrEl = document.getElementById("toggleLogsWarnErr");
+const toggleLogsOtherEl = document.getElementById("toggleLogsOther");
+
+let DATA = null;
+let currentSymbol = null;
+let activeTab = "chart";
+const REQUIRED_PLOT_TF = "5";
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const INDICATOR_POLL_MS = 60_000;
+const BOT_UI_STATE_POLL_MS = 1_500;
+const BOT_UI_LOGS_POLL_MS = 2_500;
+const QUIET_LOADING_OVERLAY = true;
+const UI_LABEL_SCALE = 2;
+const PRICE_LABEL_SCALE = 1.7;
+
+const indicatorStore = {
+  rows: [],
+  lastPullMs: 0,
+};
+
+const botUiStore = {
+  snapshot: null,
+  rawLogs: [],
+  hoveredOrderKey: "",
+};
+
+function buildOrderHoverKey(orderLike) {
+  const side = String(orderLike?.side || "").toLowerCase();
+  const price = Number(orderLike?.price || 0);
+  const qty = Number(orderLike?.qty || 0);
+  const oid = String(orderLike?.id || "");
+  if (oid) return `id:${oid}`;
+  return `spq:${side}:${Number.isFinite(price) ? price.toFixed(8) : "0"}:${Number.isFinite(qty) ? qty.toFixed(8) : "0"}`;
+}
+
+const logsFilterState = {
+  showHeartbeat: true,
+  showState: true,
+  showFills: true,
+  showCounter: true,
+  showWarnErr: true,
+  showOther: true,
+};
+
+const hiddenLineKeys = new Set();
+let suddenFlagsEnabled = true;
+let suddenFlagsCacheKey = "";
+let suddenFlagsCache = [];
+
+const hover = {
+  active: false,
+  idx: null,
+  idxFloat: null,
+  x: 0,
+  y: 0,
+};
+
+const selection = {
+  locked: false,
+  idx: null,
+};
+
+const FEATURES = [
+  { key: "bigRegimes", label: "BIG kanały", desc: "Strefy z głównego interwału bazowego", on: false },
+  { key: "bigLayer1", label: "BIG warstwa 1", desc: "Najbliższa warstwa kanałów BIG", on: false },
+  { key: "bigLayer2", label: "BIG warstwa 2", desc: "Środkowa warstwa kanałów BIG", on: false },
+  { key: "bigLayer3", label: "BIG warstwa 3", desc: "Najszersza warstwa kanałów BIG", on: false },
+  { key: "microBox", label: "MICRO box", desc: "Krótki box mikro (szybki kontekst)", on: true },
+  { key: "avgBand", label: "Średnie pasmo", desc: "Średnia z górnych i dolnych zakresów", on: false },
+  { key: "breakoutThr", label: "Progi wybicia", desc: "Linie graniczne breakoutu", on: false },
+  { key: "dominant", label: "Dominant trend", desc: "Kanał dominującego trendu (wedge)", on: false },
+  { key: "dominantMid", label: "Dominant MID", desc: "Kanał dominujący na średnim TF (różowy)", on: true },
+  { key: "impulse", label: "Impulse → Trend", desc: "Wykryty układ box+wybicie+kontynuacja", on: false },
+  { key: "side4h", label: "Boczne trendy 4h", desc: "Osobno liczony interwał 4h, fiolet gdy nachodzi", on: false },
+  { key: "ordersLayer", label: "Zlecenia (overlay)", desc: "Cienkie kropkowane linie buy/sell", on: true },
+  { key: "fillFlags", label: "Flagi fillów", desc: "Zielone/czerwone flagi w miejscach realizacji zleceń", on: true },
+];
+
+const featureState = Object.fromEntries(FEATURES.map((f) => [f.key, f.on]));
+
+// Restore feature toggles from localStorage
+(function () {
+  try {
+    const saved = JSON.parse(localStorage.getItem("channelsDemoFeatures") || "{}");
+    for (const key of Object.keys(saved)) {
+      if (key in featureState) featureState[key] = !!saved[key];
+    }
+  } catch {}
+})();
+
+function saveFeatureState() {
+  try { localStorage.setItem("channelsDemoFeatures", JSON.stringify(featureState)); } catch {}
+}
+
+function getQuerySymbol() {
+  const p = new URLSearchParams(location.search);
+  const raw = (p.get("symbol") || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!raw || raw === "UNDEFINED" || raw === "NULL") return null;
+  return raw || null;
+}
+
+async function syncScreensToggleFromConfig() {
+  try {
+    const res = await fetch("/api/config?_=" + Date.now());
+    const cfg = await res.json();
+    toggleScreensEl.checked = cfg?.screensEnabled === true;
+    if (!currentSymbol) currentSymbol = cfg?.defaultSymbol || currentSymbol;
+  } catch {
+  }
+}
+
+async function updateScreensToggle(enabled) {
+  try {
+    toggleScreensEl.disabled = true;
+    const res = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ screensEnabled: !!enabled }),
+    });
+    const cfg = await res.json();
+    if (!res.ok || !cfg?.ok) throw new Error(cfg?.error || "save_failed");
+    toggleScreensEl.checked = cfg?.screensEnabled === true;
+  } catch (e) {
+    toggleScreensEl.checked = !enabled;
+    console.error("toggle screens error:", e?.message || e);
+  } finally {
+    toggleScreensEl.disabled = false;
+  }
+}
+
+function setLoading(open, title = "Wczytywanie danych…", stepRows = [], progress01 = 0.1) {
+  if (QUIET_LOADING_OVERLAY) {
+    loadingOverlayEl.style.display = "none";
+    return;
+  }
+  loadingOverlayEl.style.display = open ? "flex" : "none";
+  if (!open) return;
+
+  loadingTitleEl.textContent = title;
+  loadingStepsEl.innerHTML = "";
+  stepRows.forEach((s) => {
+    const li = document.createElement("li");
+    li.textContent = s.text;
+    if (s.done) li.className = "stepDone";
+    loadingStepsEl.appendChild(li);
+  });
+  const width = Math.max(4, Math.min(100, Math.round(progress01 * 100)));
+  loadingFillEl.style.width = `${width}%`;
+}
+
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function splitMarketSymbol(symbolRaw) {
+  const symbol = String(symbolRaw || "").trim().toUpperCase();
+  if (!symbol) return { base: "BASE", quote: "QUOTE" };
+  const quoteCandidates = ["USDT", "USDC", "USD", "BTC", "ETH", "EUR", "BNB"];
+  for (const q of quoteCandidates) {
+    if (symbol.endsWith(q) && symbol.length > q.length) {
+      return { base: symbol.slice(0, -q.length), quote: q };
+    }
+  }
+  if (symbol.length >= 6) {
+    return { base: symbol.slice(0, symbol.length - 3), quote: symbol.slice(-3) };
+  }
+  return { base: symbol, quote: "QUOTE" };
+}
+
+function updatePageTitle(symbolRaw) {
+  const { base, quote } = splitMarketSymbol(symbolRaw);
+  document.title = `${base}/${quote}-BOT`;
+}
+
+async function pullIndicatorHistory() {
+  if (!currentSymbol) return;
+  try {
+    const res = await fetch(`/api/indicator-history?symbol=${encodeURIComponent(currentSymbol)}&_=${Date.now()}`);
+    if (!res.ok) return;
+    const payload = await res.json();
+    const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+    indicatorStore.rows = rows.sort((a, b) => Number(a?.tsMs || 0) - Number(b?.tsMs || 0));
+    indicatorStore.lastPullMs = Date.now();
+  } catch {
+  }
+}
+
+function renderBotUiSnapshot(snapshot) {
+  botUiStore.snapshot = snapshot || null;
+
+  const escapeHtml = (v) => String(v || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+  const decorateSummaryLine = (lineRaw) => {
+    const line = String(lineRaw || "");
+    const low = line.toLowerCase();
+    let cls = "";
+
+    if (low.includes("buy=")) cls = "buyVal";
+    if (low.includes("sell=") && !cls) cls = "sellVal";
+
+    const mPct = line.match(/\|\s*(-?[0-9]+\.?[0-9]*)%\s*$/);
+    if (mPct) {
+      const v = Number(mPct[1]);
+      if (Number.isFinite(v)) cls = v >= 0 ? "positive" : "negative";
+    }
+
+    let safe = escapeHtml(line);
+    safe = safe.replace(/\bbuy=([0-9.]+)/gi, '<span class="summaryTokenBuy">buy=$1</span>');
+    safe = safe.replace(/\bsell=([0-9.]+)/gi, '<span class="summaryTokenSell">sell=$1</span>');
+    safe = safe.replace(/\b(BTC|USDT)\b/g, '<span class="summaryTokenQuote">$1</span>');
+    safe = safe.replace(/(-?[0-9]+\.?[0-9]*)%/g, (m, vRaw) => {
+      const v = Number(vRaw);
+      if (!Number.isFinite(v)) return m;
+      const c = v >= 0 ? "summaryTokenPctPos" : "summaryTokenPctNeg";
+      return `<span class="${c}">${m}</span>`;
+    });
+
+    return `<span class="summaryLine ${cls}">${safe}</span>`;
+  };
+
+  if (cmdSummaryPreEl) {
+    const lines = Array.isArray(snapshot?.summaryLines) ? snapshot.summaryLines : [];
+    if (!lines.length) {
+      cmdSummaryPreEl.textContent = "Brak danych stanu bota";
+    } else {
+      const html = lines.map((line) => decorateSummaryLine(line)).join("");
+      cmdSummaryPreEl.innerHTML = html;
+    }
+  }
+
+  // Pre-fill form inputs with current config values (only if not focused)
+  const cfgSnap = snapshot?.configSnapshot;
+  if (cfgSnap) {
+    const inpOqv = document.getElementById("inpOrderQuoteValue");
+    const inpMsp = document.getElementById("inpMicroSpacingPct");
+    if (inpOqv && document.activeElement !== inpOqv && !inpOqv.dataset.dirty)
+      inpOqv.placeholder = String(cfgSnap.orderQuoteValue ?? "ORDER_QUOTE_VALUE");
+    if (inpMsp && document.activeElement !== inpMsp && !inpMsp.dataset.dirty)
+      inpMsp.placeholder = String(cfgSnap.microSpacingPct ?? "MICRO_SPACING_PCT");
+  }
+
+  if (ordersTableEl) {
+    ordersTableEl.innerHTML = "";
+    const orders = Array.isArray(snapshot?.orders) ? snapshot.orders : [];
+    const nowPrice = Number(snapshot?.currentPrice || 0);
+    if (!orders.length) {
+      const empty = document.createElement("div");
+      empty.className = "orderRow";
+      empty.style.gridTemplateColumns = "1fr";
+      empty.textContent = "Brak aktywnych zleceń";
+      ordersTableEl.appendChild(empty);
+      return;
+    }
+
+    // helper: send command to bot
+    const sendOrderCmd = async (cmd, extra = {}) => {
+      try {
+        const res = await fetch("/api/bot-command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd, ...extra }),
+        });
+        const p = await res.json().catch(() => ({}));
+        if (!res.ok || p?.ok === false) throw new Error(p?.error || `HTTP ${res.status}`);
+      } catch (e) {
+        alert("Błąd komendy: " + (e?.message || e));
+      }
+    };
+
+    // orders already sorted: Sell desc, then Buy desc
+    let insertedNowPrice = false;
+    orders.forEach((o, idx) => {
+      const side = String(o?.side || "").toLowerCase();
+
+      // Insert "Now price" row between last sell and first buy
+      if (!insertedNowPrice && side === "buy") {
+        insertedNowPrice = true;
+        const nowRow = document.createElement("div");
+        nowRow.className = "orderNowRow";
+        nowRow.innerHTML = `<span>▸</span><span>Now ${Number.isFinite(nowPrice) && nowPrice > 0 ? fmt2(nowPrice) : "—"}</span><span>◂</span>`;
+        ordersTableEl.appendChild(nowRow);
+      }
+
+      const price = Number(o?.price || 0);
+      const qty = Number(o?.qty || 0);
+      const notional = Number(o?.notional || 0);
+      const clusterTag = o?.isCluster ? "cluster" : "";
+      const oid = String(o?.id || "");
+      const olid = String(o?.linkId || "");
+      const refLabel = oid || olid;
+
+      const row = document.createElement("div");
+      row.className = `orderRow ${side === "sell" ? "sell" : "buy"}`;
+      const rowHoverKey = buildOrderHoverKey(o);
+      row.addEventListener("mouseenter", () => {
+        botUiStore.hoveredOrderKey = rowHoverKey;
+        if (DATA) draw();
+      });
+      row.addEventListener("mouseleave", () => {
+        if (botUiStore.hoveredOrderKey === rowHoverKey) {
+          botUiStore.hoveredOrderKey = "";
+          if (DATA) draw();
+        }
+      });
+
+      // Side
+      const sideSpan = document.createElement("span");
+      sideSpan.className = `orderSide ${side}`;
+      const isG2 = String(o?.gridTag || "").toUpperCase() === "G2";
+      if (isG2) {
+        sideSpan.innerHTML = `${side || "—"} <span style="font-size:9px;padding:1px 3px;border-radius:3px;background:rgba(180,130,255,0.22);color:#c8a0ff;border:1px solid rgba(180,130,255,0.35);margin-left:2px;">G2</span>`;
+      } else {
+        sideSpan.textContent = side || "—";
+      }
+
+      // Price + edit pencil
+      const priceCell = document.createElement("span");
+      priceCell.className = "orderCellEditable";
+      priceCell.innerHTML = `${Number.isFinite(price) ? fmt2(price) : "—"}`;
+      const priceBtn = document.createElement("button");
+      priceBtn.className = "orderEditBtn";
+      priceBtn.title = "Zmień cenę";
+      priceBtn.textContent = "✏";
+      priceBtn.addEventListener("click", () => {
+        if (!refLabel) { alert("Brak identyfikatora zlecenia (id/linkId)"); return; }
+        const input = prompt(`Nowa cena dla ${side.toUpperCase()} (obecna: ${fmt2(price)}):`);
+        if (input === null) return;
+        const newP = Number(input);
+        if (!Number.isFinite(newP) || newP <= 0) { alert("Nieprawidłowa cena"); return; }
+        sendOrderCmd("replace_price", { orderId: oid, orderLinkId: olid, newPrice: newP });
+      });
+      priceCell.appendChild(priceBtn);
+
+      // Qty
+      const qtySpan = document.createElement("span");
+      qtySpan.textContent = Number.isFinite(qty) ? qty.toFixed(8) : "—";
+
+      // Notional (quote) + edit pencil
+      const notionalCell = document.createElement("span");
+      notionalCell.className = "orderCellEditable";
+      notionalCell.innerHTML = `${Number.isFinite(notional) ? fmt2(notional) : "—"} ${clusterTag}`;
+      const quoteBtn = document.createElement("button");
+      quoteBtn.className = "orderEditBtn";
+      quoteBtn.title = "Zmień quote (przelicza base)";
+      quoteBtn.textContent = "✏";
+      quoteBtn.addEventListener("click", () => {
+        if (!refLabel) { alert("Brak identyfikatora zlecenia (id/linkId)"); return; }
+        const input = prompt(`Nowy quote dla ${side.toUpperCase()} @ ${fmt2(price)} (obecny: ${fmt2(notional)}):`);
+        if (input === null) return;
+        const newQ = Number(input);
+        if (!Number.isFinite(newQ) || newQ <= 0) { alert("Nieprawidłowy quote"); return; }
+        sendOrderCmd("replace_quote", { orderId: oid, orderLinkId: olid, newQuote: newQ });
+      });
+      notionalCell.appendChild(quoteBtn);
+
+      // Delete button
+      const delBtn = document.createElement("button");
+      delBtn.className = "orderDeleteBtn";
+      delBtn.title = "Usuń zlecenie";
+      delBtn.textContent = "🗑";
+      delBtn.addEventListener("click", () => {
+        if (!refLabel) { alert("Brak identyfikatora zlecenia (id/linkId)"); return; }
+        if (!confirm(`Usunąć ${side.toUpperCase()} @ ${fmt2(price)}?`)) return;
+        sendOrderCmd("cancel_one", { orderId: oid, orderLinkId: olid });
+      });
+
+      row.appendChild(sideSpan);
+      row.appendChild(priceCell);
+      row.appendChild(qtySpan);
+      row.appendChild(notionalCell);
+      row.appendChild(delBtn);
+
+      // ▶ BOT 8.0: partial fill badge
+      if (o?.status === "PARTIAL_OPEN" || o?.status === "PARTIAL_PENDING") {
+        const pct = Number(o.partialFillPct || 0).toFixed(1);
+        const badge = document.createElement("div");
+        badge.style.cssText = "grid-column:1/-1;font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,180,40,0.15);color:#ffc040;border:1px solid rgba(255,180,40,0.3);";
+        badge.textContent = `⏳ partial ${pct}% filled (${Number(o.partialFilledQty||0).toFixed(8)} / ${Number(o.partialTargetQty||0).toFixed(8)}) – capital DEFERRED`;
+        row.appendChild(badge);
+      }
+
+      ordersTableEl.appendChild(row);
+    });
+
+    // If all orders are sell (no buy), still show "Now price" at end
+    if (!insertedNowPrice && nowPrice > 0) {
+      const nowRow = document.createElement("div");
+      nowRow.className = "orderNowRow";
+      nowRow.innerHTML = `<span>▸</span><span>Now ${fmt2(nowPrice)}</span><span>◂</span>`;
+      ordersTableEl.appendChild(nowRow);
+    }
+  }
+
+  if (DATA) draw();
+}
+
+function renderBotLogs(lines) {
+  if (!logsPreEl) return;
+
+  botUiStore.rawLogs = Array.isArray(lines) ? lines : [];
+  const arr = botUiStore.rawLogs;
+  const classifyLogLine = (lineObj) => {
+    const line = String(lineObj?.line || "");
+    const low = line.toLowerCase();
+
+    if (/^\s*(warn|err)\b/i.test(line) || /⚠️|❌|\berror\b/i.test(line)) return "warnErr";
+    if (/strategy\s+mode|mode\s*switch|\bmode=/i.test(line)) return "drop";
+    if (/gap[_\s]*patrol|\bthrottle\b|\bthrottled\b|impulse|reactivation|deferred\s*pool|recovery|invariant|\bchurn\b/i.test(low)) return "drop";
+    if (/heartbeat|\balive\b|💓|hb\b/i.test(line)) return "heartbeat";
+    if (/\bcounter\b|counter\s+placed|loop\s+closed|ui\s+replace_|ui\s+cancel_one/i.test(low)) return "counter";
+    if (/\bfill\b|buy\s+filled|sell\s+filled|order\s+filled|💰|🟡/i.test(low)) return "fills";
+    if (/^open:\s*total=|^fills:\s*buy=|^price:\s|^free:\s|^reserved:\s|^total:\s|^fee:\s|^compound:\s|^loops:\s|^eq:\s|^buy\(|^sell\(|price\s+now|\borders\b|\bkomenda\s*o\b|stan\s*bota/i.test(low)) return "state";
+    return "other";
+  };
+
+  const filtered = arr.filter((lineObj) => {
+    const category = classifyLogLine(lineObj);
+    if (category === "drop") return false;
+    if (category === "heartbeat" && !logsFilterState.showHeartbeat) return false;
+    if (category === "state" && !logsFilterState.showState) return false;
+    if (category === "fills" && !logsFilterState.showFills) return false;
+    if (category === "counter" && !logsFilterState.showCounter) return false;
+    if (category === "warnErr" && !logsFilterState.showWarnErr) return false;
+    if (category === "other" && !logsFilterState.showOther) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    logsPreEl.textContent = "Brak logów";
+    return;
+  }
+
+  const wasNearBottom = (logsPreEl.scrollHeight - logsPreEl.scrollTop - logsPreEl.clientHeight) <= 20;
+  const txt = filtered
+    .map((l) => {
+      const ts = Number(l?.ts || 0);
+      const t = Number.isFinite(ts) && ts > 0 ? new Date(ts).toLocaleTimeString() : "--:--:--";
+      return `[${t}] ${String(l?.line || "")}`;
+    })
+    .join("\n");
+
+  if (logsPreEl.textContent !== txt) {
+    logsPreEl.textContent = txt;
+  }
+
+  if (wasNearBottom) {
+    logsPreEl.scrollTop = logsPreEl.scrollHeight;
+  }
+}
+
+async function pullBotUiSnapshot() {
+  try {
+    const uiRes = await fetch(`/api/bot-ui?_=${Date.now()}`);
+    const uiPayload = uiRes.ok ? await uiRes.json() : { payload: null };
+    renderBotUiSnapshot(uiPayload?.payload || null);
+  } catch {
+  }
+}
+
+async function pullBotLogs() {
+  try {
+    const logsRes = await fetch(`/api/bot-logs?limit=800&_=${Date.now()}`);
+    const logsPayload = logsRes.ok ? await logsRes.json() : { lines: [] };
+    renderBotLogs(logsPayload?.lines || []);
+  } catch {
+  }
+}
+
+function setTab(tab) {
+  activeTab = tab === "points" ? "points" : "chart";
+  panelChartEl.classList.remove("panelHidden");
+  tabChartEl.classList.toggle("active", activeTab === "chart");
+  tabPointsEl.classList.toggle("active", activeTab === "points");
+}
+
+function activeCursorIndex() {
+  if (!DATA?.plot?.t?.length) return 0;
+  if (selection.locked && Number.isFinite(selection.idx)) {
+    return clamp(selection.idx, view.i0, view.i1 - 1);
+  }
+  if (Number.isFinite(hover.idx)) {
+    return clamp(hover.idx, view.i0, view.i1 - 1);
+  }
+  return Math.max(0, view.i1 - 1);
+}
+
+function activeCursorTsMs() {
+  if (!DATA?.plot?.t?.length) return null;
+
+  if (selection.locked && Number.isFinite(selection.idx)) {
+    const idx = clamp(selection.idx, view.i0, view.i1 - 1);
+    return Number(DATA.plot.t[idx]);
+  }
+
+  if (Number.isFinite(hover.idxFloat)) {
+    const idxF = clamp(hover.idxFloat, view.i0, view.i1 - 1);
+    const iL = clamp(Math.floor(idxF), view.i0, view.i1 - 1);
+    const iR = clamp(iL + 1, view.i0, view.i1 - 1);
+    const frac = clamp(idxF - iL, 0, 1);
+    return DATA.plot.t[iL] + (DATA.plot.t[iR] - DATA.plot.t[iL]) * frac;
+  }
+
+  const idx = Math.max(0, view.i1 - 1);
+  return Number(DATA.plot.t[idx]);
+}
+
+function pickIndicatorRecord(tsMs) {
+  if (!Array.isArray(indicatorStore.rows) || !indicatorStore.rows.length) return null;
+  if (!Number.isFinite(tsMs)) return indicatorStore.rows[indicatorStore.rows.length - 1] || null;
+
+  let best = null;
+  let bestDiff = Number.POSITIVE_INFINITY;
+
+  for (const row of indicatorStore.rows) {
+    const t = Number(row?.tsMs);
+    if (!Number.isFinite(t)) continue;
+    const diff = Math.abs(t - tsMs);
+    if (diff < bestDiff) {
+      best = row;
+      bestDiff = diff;
+    }
+  }
+
+  return best;
+}
+
+function formatDateTimePl(ms) {
+  if (!Number.isFinite(ms)) return "—";
+  const d = new Date(ms);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${dd}.${mm}.${yyyy} ${hh}:${mi}:${ss}`;
+}
+
+function getActiveCursorSnapshot() {
+  if (!DATA?.plot?.t?.length || !DATA?.plot?.close?.length) return null;
+
+  const close = DATA.plot.close;
+  const times = DATA.plot.t;
+
+  if (selection.locked && Number.isFinite(selection.idx)) {
+    const idx = clamp(selection.idx, view.i0, view.i1 - 1);
+    return {
+      locked: true,
+      idx,
+      tsMs: Number(times[idx]),
+      price: Number(close[idx]),
+    };
+  }
+
+  if (Number.isFinite(hover.idxFloat)) {
+    const idxF = clamp(hover.idxFloat, view.i0, view.i1 - 1);
+    const iL = clamp(Math.floor(idxF), view.i0, view.i1 - 1);
+    const iR = clamp(iL + 1, view.i0, view.i1 - 1);
+    const frac = clamp(idxF - iL, 0, 1);
+    const tsMs = Number(times[iL]) + (Number(times[iR]) - Number(times[iL])) * frac;
+    const price = Number(close[iL]) + (Number(close[iR]) - Number(close[iL])) * frac;
+    return {
+      locked: false,
+      idx: iL,
+      tsMs,
+      price,
+    };
+  }
+
+  const idx = clamp(Math.max(0, view.i1 - 1), 0, close.length - 1);
+  return {
+    locked: false,
+    idx,
+    tsMs: Number(times[idx]),
+    price: Number(close[idx]),
+  };
+}
+
+function buildReadingsText() {
+  const cursor = getActiveCursorSnapshot();
+  const cursorTsMs = cursor?.tsMs;
+  const selectedIndicator = pickIndicatorRecord(cursorTsMs);
+
+  const lines = [];
+  lines.push("=== ODCZYTY DO ANALIZY LLM ===");
+  lines.push(`Export: ${formatDateTimePl(Date.now())}`);
+  lines.push(`Symbol: ${DATA?.symbol || currentSymbol || "—"}`);
+  lines.push(`TF: ${DATA?.plotTf || REQUIRED_PLOT_TF}`);
+  lines.push(`Tryb kursora: ${cursor?.locked ? "LOCK" : "HOVER"}`);
+  lines.push(`Czas kursora: ${formatDateTimePl(Number(cursorTsMs))}`);
+  lines.push(`Cena kursora: ${fmt2(Number(cursor?.price))}`);
+  lines.push("");
+
+  if (selectedIndicator) {
+    lines.push("--- Wskaźniki (najbliższy rekord historyczny) ---");
+    lines.push(`Czas rekordu: ${formatDateTimePl(Number(selectedIndicator.tsMs))}`);
+    lines.push(`Regime: ${selectedIndicator.regime ?? "—"}`);
+    lines.push(`CCI: ${fmt2(Number(selectedIndicator.cci))}`);
+    lines.push(`ADX14: ${fmt2(Number(selectedIndicator.adx14))}`);
+    lines.push(`ATR%: ${fmt2(Number(selectedIndicator.atrPct))}`);
+    lines.push(`EMA spread %: ${fmt2(Number(selectedIndicator.emaSpreadPct))}`);
+    lines.push(`Momentum score: ${fmt2(Number(selectedIndicator.momentumScore))}`);
+    lines.push(`Pressure score: ${fmt2(Number(selectedIndicator.pressureScore))}`);
+    lines.push(`Shock score: ${fmt2(Number(selectedIndicator.shockScore))}`);
+    lines.push(`Shock dir: ${fmt2(Number(selectedIndicator.shockDir))}`);
+    lines.push(`Bot signal: ${fmt2(Number(selectedIndicator.botSignal))}`);
+    lines.push(`ImpulseDepthScore: ${fmt2(Number(selectedIndicator.impulseDepthScore))}`);
+    lines.push(`VolRatio: ${fmt2(Number(selectedIndicator.volRatio))}`);
+    lines.push(`OB imbalance: ${fmt2(Number(selectedIndicator.obImbalance))}`);
+    lines.push("");
+
+    const placements = selectedIndicator.placements || {};
+    lines.push("--- Placement levels ---");
+    lines.push(`BUY(big): ${fmt2(Number(placements.buySuggest))}`);
+    lines.push(`SELL(big): ${fmt2(Number(placements.sellSuggest))}`);
+    lines.push(`BUY(micro): ${fmt2(Number(placements.microBuySuggest))}`);
+    lines.push(`SELL(micro): ${fmt2(Number(placements.microSellSuggest))}`);
+    lines.push("");
+
+    const pc = selectedIndicator.placementComponents || {};
+    const addComp = (name, arr) => {
+      lines.push(`--- ${name} ---`);
+      if (!Array.isArray(arr) || !arr.length) {
+        lines.push("brak składników");
+      } else {
+        arr.forEach((el) => {
+          lines.push(`${el?.label || "składnik"}: ${fmt2(Number(el?.value))}`);
+        });
+      }
+      lines.push("");
+    };
+
+    addComp("BUY(big) składniki", pc.buyBig);
+    addComp("SELL(big) składniki", pc.sellBig);
+    addComp("BUY(micro) składniki", pc.buyMicro);
+    addComp("SELL(micro) składniki", pc.sellMicro);
+  } else {
+    lines.push("Brak rekordu wskaźników dla wybranego momentu (poczekaj na kolejne próbki minutowe).");
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
+}
+
+async function copyReadingsToClipboard() {
+  const text = buildReadingsText();
+  if (!text) throw new Error("Brak danych do kopiowania");
+
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+
+  return text.length;
+}
+
+function tfToMinutes(tf) {
+  const s = String(tf || "").trim().toLowerCase();
+  if (!s) return 5;
+  if (/^\d+$/.test(s)) return Math.max(1, Number(s));
+  if (s.endsWith("m")) return Math.max(1, Number(s.slice(0, -1)) || 5);
+  if (s.endsWith("h")) return Math.max(1, (Number(s.slice(0, -1)) || 1) * 60);
+  if (s.endsWith("d")) return Math.max(1, (Number(s.slice(0, -1)) || 1) * 1440);
+  return 5;
+}
+
+function toLocalDatetimeInputValue(ms) {
+  const d = new Date(ms - new Date().getTimezoneOffset() * 60_000);
+  return d.toISOString().slice(0, 16);
+}
+
+function parseLocalDatetimeInput(value) {
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function setHistoryHint(text) {
+  if (historyHintEl) historyHintEl.textContent = text;
+}
+
+async function fetchCsvHistoryRange() {
+  const urls = ["/logs/market_history_5m.csv", "../logs/market_history_5m.csv"];
+  let raw = null;
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(`${url}?_=${Date.now()}`);
+      if (!res.ok) continue;
+      raw = await res.text();
+      if (raw && raw.trim()) break;
+    } catch {
+    }
+  }
+
+  if (!raw) return null;
+
+  const lines = raw.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return null;
+
+  let minTs = Infinity;
+  let maxTs = -Infinity;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",");
+    const tsMs = Number(cols[1]);
+    if (!Number.isFinite(tsMs) || tsMs <= 0) continue;
+    minTs = Math.min(minTs, tsMs);
+    maxTs = Math.max(maxTs, tsMs);
+  }
+
+  if (!Number.isFinite(minTs) || !Number.isFinite(maxTs)) return null;
+  return { minTs, maxTs };
+}
+
+async function fetchBybitKlinesRange({ symbol, category, interval, fromMs, toMs }) {
+  const out = [];
+  let cursorEnd = toMs;
+  let guard = 0;
+
+  while (guard < 50) {
+    guard += 1;
+
+    const url = new URL("https://api.bybit.com/v5/market/kline");
+    url.searchParams.set("category", category);
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("interval", String(interval));
+    url.searchParams.set("limit", "1000");
+    url.searchParams.set("end", String(cursorEnd));
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Bybit HTTP ${res.status}`);
+    const json = await res.json();
+
+    if (json?.retCode !== 0) {
+      throw new Error(`Bybit retCode=${json?.retCode} ${json?.retMsg || ""}`.trim());
+    }
+
+    const rows = Array.isArray(json?.result?.list) ? json.result.list : [];
+    if (!rows.length) break;
+
+    const parsed = rows
+      .map((r) => ({
+        startMs: Number(r[0]),
+        close: Number(r[4]),
+      }))
+      .filter((r) => Number.isFinite(r.startMs) && Number.isFinite(r.close) && r.startMs >= fromMs && r.startMs <= toMs);
+
+    out.push(...parsed);
+
+    const oldest = Math.min(...rows.map((r) => Number(r[0])).filter((v) => Number.isFinite(v)));
+    if (!Number.isFinite(oldest) || oldest <= fromMs) break;
+    cursorEnd = oldest - 1;
+  }
+
+  const uniq = new Map();
+  for (const row of out) {
+    uniq.set(row.startMs, row.close);
+  }
+
+  return [...uniq.entries()]
+    .map(([startMs, close]) => ({ startMs: Number(startMs), close: Number(close) }))
+    .sort((a, b) => a.startMs - b.startMs);
+}
+
+function applyPeriodCandlesToChart(candles, interval = "5") {
+  if (!Array.isArray(candles) || candles.length < 2) {
+    throw new Error("Za mało świec w wybranym okresie");
+  }
+
+  const t = candles.map((c) => c.startMs);
+  const close = candles.map((c) => c.close);
+  const firstTs = t[0];
+  const lastTs = t[t.length - 1];
+  const lookbackDays = Math.max(1, Math.ceil((lastTs - firstTs) / (24 * 60 * 60 * 1000)));
+
+  DATA = {
+    symbol: currentSymbol || "BTCUSDT",
+    category: DATA?.category || "linear",
+    updatedAt: new Date().toISOString(),
+    lookbackDays,
+    plotTf: String(interval),
+    plot: { t, close },
+    placements: {},
+    tfs: {},
+    bigLow: {},
+    bigSmall: {},
+    micro: {},
+    avg: {},
+    box: {},
+    dominant: {},
+    dominantMid: {},
+    impulseTrend: {},
+    side4h: {},
+  };
+
+  selection.locked = false;
+  selection.idx = null;
+  hover.active = false;
+  hover.idx = null;
+
+  rebuildViewDefault();
+  syncTimelineFromView();
+  draw();
+}
+
+async function loadPeriodCandlesFromForm() {
+  const interval = String(historyTfEl?.value || "5");
+  const fromMs = parseLocalDatetimeInput(historyFromEl?.value || "");
+  const toMs = parseLocalDatetimeInput(historyToEl?.value || "");
+
+  if (!fromMs || !toMs || toMs <= fromMs) {
+    throw new Error("Niepoprawny zakres dat (OD/DO)");
+  }
+
+  if (!currentSymbol) {
+    throw new Error("Brak symbolu");
+  }
+
+  const category = DATA?.category || "linear";
+  setHistoryHint(`Pobieranie świec ${interval}m z Bybit: ${currentSymbol}…`);
+
+  const reqQS = `symbol=${encodeURIComponent(currentSymbol)}&tf=${encodeURIComponent(interval)}&interval=${encodeURIComponent(interval)}&fromMs=${encodeURIComponent(fromMs)}&toMs=${encodeURIComponent(toMs)}&_=${Date.now()}`;
+  const res = await fetch(`/data.json?${reqQS}`);
+  if (!res.ok) {
+    throw new Error(`Błąd serwera: ${res.status}`);
+  }
+
+  const payload = await res.json();
+  if (!payload?.plot?.t?.length || !payload?.plot?.close?.length) {
+    throw new Error("Brak danych wykresu dla wybranego zakresu");
+  }
+
+  const prevVisibleBars = DATA?.plot?.close?.length ? (view.i1 - view.i0) : null;
+  DATA = payload;
+  if (DATA && DATA.plotTf && String(DATA.plotTf) !== interval) {
+    DATA.plotTf = `${interval}m`;
+  }
+
+  if (prevVisibleBars && DATA?.plot?.close?.length) {
+    const total = DATA.plot.close.length;
+    const keep = clamp(prevVisibleBars, 40, total);
+    view.i1 = total;
+    view.i0 = Math.max(0, total - keep);
+    fitYToVisibleClose();
+  } else {
+    rebuildViewDefault();
+  }
+
+  selection.locked = false;
+  selection.idx = null;
+  hover.active = false;
+  hover.idx = null;
+  hover.idxFloat = null;
+
+  syncTimelineFromView();
+  await pullIndicatorHistory();
+  draw();
+
+  setHistoryHint(`Załadowano ${DATA.plot.t.length} świec ${interval}m dla ${currentSymbol}.`);
+}
+
+function dominantTrendChangePct6h(dom, idx, plotTf) {
+  if (!dom?.ok) return null;
+  const tfMin = tfToMinutes(plotTf);
+  const barsBack = Math.max(1, Math.round(360 / tfMin));
+  const iNow = clamp(idx, dom.startIndex, dom.endIndex);
+  const iPrev = clamp(iNow - barsBack, dom.startIndex, dom.endIndex);
+  if (!Number.isFinite(iNow) || !Number.isFinite(iPrev) || iNow === iPrev) return null;
+
+  const xNow = iNow - dom.startIndex;
+  const xPrev = iPrev - dom.startIndex;
+
+  const upNow = dom.upperSlope * xNow + dom.bUpper;
+  const dnNow = dom.lowerSlope * xNow + dom.bLower;
+  const upPrev = dom.upperSlope * xPrev + dom.bUpper;
+  const dnPrev = dom.lowerSlope * xPrev + dom.bLower;
+
+  const midNow = (upNow + dnNow) / 2;
+  const midPrev = (upPrev + dnPrev) / 2;
+  if (!Number.isFinite(midNow) || !Number.isFinite(midPrev) || Math.abs(midPrev) < 1e-12) return null;
+
+  return ((midNow - midPrev) / Math.abs(midPrev)) * 100;
+}
+
+function formatPointValue(row) {
+  if (!(typeof row?.value === "number" && isFinite(row.value))) return "—";
+  if (row?.kind === "pct") {
+    const sign = row.value > 0 ? "+" : "";
+    return `${sign}${row.value.toFixed(2)}%`;
+  }
+  return fmt2(row.value);
+}
+
+function lineKey(tf, layer, side) {
+  return `big:${String(tf)}:${String(layer)}:${String(side)}`;
+}
+
+function formatValueWithTick(value, refPrice) {
+  if (!(typeof value === "number" && isFinite(value))) return "—";
+  const ref = Number.isFinite(refPrice) ? refPrice : value;
+  const dec = detectPriceDecimals(ref);
+  const tick = Math.pow(10, -Math.max(0, dec));
+  const tickText = tick < 1 ? tick.toFixed(Math.min(8, dec + 2)).replace(/0+$/, "").replace(/\.$/, "") : String(tick);
+  return `${fmt2(value)} (tick ${tickText})`;
+}
+
+function renderPricePoints(close, times, ctx) {
+  if (!DATA || !Array.isArray(close) || !close.length) return;
+
+  const idx = clamp(activeCursorIndex(), 0, close.length - 1);
+  const ts = Number(times[idx]);
+  const rows = [];
+
+  const addPoint = (group, label, value, kind = "price") => {
+    if (!(typeof value === "number" && isFinite(value))) return;
+    rows.push({ group, label, value, kind, key: null });
+  };
+
+  const addBigPoint = (group, label, value, key) => {
+    if (!(typeof value === "number" && isFinite(value))) return;
+    rows.push({ group, label, value, kind: "price", key });
+  };
+
+  addPoint("Cena bazowa", "Cena aktywa (close)", close[idx]);
+
+  const bigTf = ctx.bigTf;
+  const big = ctx.big || {};
+  const bigLow = ctx.bigLow || {};
+  const bigSmall = ctx.bigSmall || {};
+  const micro = ctx.micro || {};
+  const avg = ctx.avg || {};
+  const box = ctx.box || {};
+  const dom = ctx.dom || {};
+  const domMid = ctx.domMid || {};
+  const side4h = ctx.side4h || {};
+
+  (big.regimes || []).forEach((r, i) => {
+    addBigPoint(`BIG kanały • TF ${bigTf}`, `Warstwa ${i + 1} Góra`, r.upper, lineKey(bigTf, i + 1, "upper"));
+    addBigPoint(`BIG kanały • TF ${bigTf}`, `Warstwa ${i + 1} Dół`, r.lower, lineKey(bigTf, i + 1, "lower"));
+  });
+
+  if (bigLow.ok && bigLow.tf !== bigTf) {
+    (bigLow.regimes || []).forEach((r, i) => {
+      addBigPoint(`BIG kanały • TF ${bigLow.tf}`, `Warstwa ${i + 1} Góra`, r.upper, lineKey(bigLow.tf, i + 1, "upper"));
+      addBigPoint(`BIG kanały • TF ${bigLow.tf}`, `Warstwa ${i + 1} Dół`, r.lower, lineKey(bigLow.tf, i + 1, "lower"));
+    });
+  }
+
+  if (bigSmall.ok && bigSmall.tf !== bigTf && bigSmall.tf !== bigLow.tf) {
+    (bigSmall.regimes || []).forEach((r, i) => {
+      addBigPoint(`BIG kanały • TF ${bigSmall.tf}`, `Warstwa ${i + 1} Góra`, r.upper, lineKey(bigSmall.tf, i + 1, "upper"));
+      addBigPoint(`BIG kanały • TF ${bigSmall.tf}`, `Warstwa ${i + 1} Dół`, r.lower, lineKey(bigSmall.tf, i + 1, "lower"));
+    });
+  }
+
+  addPoint("MICRO box", "Górna linia", micro.upper);
+  addPoint("MICRO box", "Dolna linia", micro.lower);
+  addPoint("Średnie pasmo", "Górna średnia", avg.upper);
+  addPoint("Średnie pasmo", "Dolna średnia", avg.lower);
+  addPoint("Progi wybicia", "Próg wybicia w górę", box.upThr);
+  addPoint("Progi wybicia", "Próg wybicia w dół", box.dnThr);
+
+  if (dom.ok) {
+    const pct6h = dominantTrendChangePct6h(dom, idx, DATA.plotTf);
+    addPoint("Dominant trend", "Zmiana środka trendu (6h)", pct6h, "pct");
+  }
+
+  if (domMid.ok) {
+    const pct6hMid = dominantTrendChangePct6h(domMid, idx, DATA.plotTf);
+    addPoint("Dominant MID", `Zmiana środka trendu (6h, TF ${domMid.tf || "?"})`, pct6hMid, "pct");
+  }
+
+  if (side4h.ok && Number.isFinite(ts)) {
+    for (const fr of side4h.frames || []) {
+      if (!Number.isFinite(fr.startTs) || !Number.isFinite(fr.endTs)) continue;
+      if (ts < fr.startTs || ts > fr.endTs) continue;
+      const frac = clamp((ts - fr.startTs) / Math.max(1, (fr.endTs - fr.startTs)), 0, 1);
+      const up = fr.upper0 + (fr.upper1 - fr.upper0) * frac;
+      const dn = fr.lower0 + (fr.lower1 - fr.lower0) * frac;
+      const tag = `Rama ${fr.idx}${fr.overlapsCurrent ? " (overlap)" : ""}`;
+      addPoint("Boczne trendy 4h", `${tag} • Góra`, up);
+      addPoint("Boczne trendy 4h", `${tag} • Dół`, dn);
+    }
+  }
+
+  rows.sort((a, b) => b.value - a.value);
+
+  if (!rows.length) {
+    addPoint("Cena bazowa", "Cena aktywa (close)", close[idx]);
+  }
+
+  const grouped = new Map();
+  for (const r of rows) {
+    if (!grouped.has(r.group)) grouped.set(r.group, []);
+    grouped.get(r.group).push(r);
+  }
+
+  const d = new Date(Number.isFinite(ts) ? ts : Date.now());
+  const tsLabel = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  priceMetaEl.textContent = `Punkty cenowe dla ${DATA.symbol} • ${tsLabel}`;
+
+  priceGridEl.innerHTML = "";
+  const mainWrap = document.createElement("div");
+  mainWrap.className = "priceMainWrap";
+  const bigWrap = document.createElement("div");
+  bigWrap.className = "priceBigWrap";
+  priceGridEl.appendChild(mainWrap);
+  priceGridEl.appendChild(bigWrap);
+
+  const renderCard = (group, vals, limit = 16, targetEl = mainWrap) => {
+    const rowsLocal = Array.isArray(vals) ? vals : [];
+    const card = document.createElement("div");
+    card.className = "priceCard";
+
+    const groupFeatureMap = {
+      "MICRO box": "microBox",
+      "Dominant trend": "dominant",
+      "Dominant MID": "dominantMid",
+      "Średnie pasmo": "avgBand",
+      "Progi wybicia": "breakoutThr",
+      "Boczne trendy 4h": "side4h",
+    };
+
+    const head = document.createElement("div");
+    head.style.display = "flex";
+    head.style.justifyContent = "space-between";
+    head.style.alignItems = "center";
+    head.style.gap = "8px";
+
+    const h = document.createElement("h4");
+    h.style.margin = "0";
+    h.textContent = group;
+    head.appendChild(h);
+
+    const featureKey = groupFeatureMap[group] || null;
+    if (featureKey) {
+      const togg = document.createElement("label");
+      togg.className = "groupToggleLabel";
+      togg.innerHTML = `<input type="checkbox" data-feature-key="${featureKey}" ${featureState[featureKey] ? "checked" : ""} /> linie`;
+      head.appendChild(togg);
+    }
+
+    card.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "priceList";
+    if (!rowsLocal.length) {
+      const rr = document.createElement("div");
+      rr.className = "priceRow";
+      rr.innerHTML = "<span>Brak danych</span><span>—</span>";
+      list.appendChild(rr);
+    } else {
+      rowsLocal.slice(0, limit).forEach((row) => {
+        const rr = document.createElement("div");
+        rr.className = "priceRow";
+        rr.innerHTML = `<span>${row.label}</span><span>${formatPointValue(row)}</span>`;
+        list.appendChild(rr);
+      });
+    }
+
+    card.appendChild(list);
+    targetEl.appendChild(card);
+  };
+
+  const groupOrder = [
+    "Cena bazowa",
+    "Dominant trend",
+    "Dominant MID",
+    "MICRO box",
+    "Średnie pasmo",
+    "Progi wybicia",
+    "Boczne trendy 4h",
+  ];
+
+  const bigPrefix = "BIG kanały • TF ";
+  const seen = new Set();
+
+  groupOrder.forEach((name) => {
+    const vals = grouped.get(name);
+    renderCard(name, vals || [], 16);
+    seen.add(name);
+  });
+
+  for (const [group, vals] of grouped.entries()) {
+    if (seen.has(group)) continue;
+    if (group.startsWith(bigPrefix)) continue;
+    renderCard(group, vals, 16);
+  }
+
+  const mainBigKey = `${bigPrefix}${bigTf}`;
+  const mainBigVals = grouped.get(mainBigKey) || [];
+  const otherBigVals = [];
+  for (const [group, vals] of grouped.entries()) {
+    if (!group.startsWith(bigPrefix) || group === mainBigKey) continue;
+    vals.forEach((v) => {
+      otherBigVals.push({ ...v, label: `${group.replace(bigPrefix, "TF ")} • ${v.label}` });
+    });
+  }
+
+  if (mainBigVals.length || otherBigVals.length) {
+    const wide = document.createElement("div");
+    wide.className = "priceCard";
+
+    const h = document.createElement("h4");
+    h.textContent = "BIG kanały — podział interwałów";
+    wide.appendChild(h);
+
+    const bigMasterToggle = document.createElement("label");
+    bigMasterToggle.className = "groupToggleLabel";
+    bigMasterToggle.style.marginBottom = "8px";
+    bigMasterToggle.innerHTML = `<input type="checkbox" data-feature-key="bigRegimes" ${featureState.bigRegimes ? "checked" : ""} /> pokaż BIG kanały`;
+    wide.appendChild(bigMasterToggle);
+
+    if (!featureState.bigRegimes) {
+      const hint = document.createElement("div");
+      hint.className = "priceRow";
+      hint.innerHTML = "<span>BIG kanały są ukryte</span><span>włącz checkbox</span>";
+      wide.appendChild(hint);
+      bigWrap.appendChild(wide);
+      return;
+    }
+
+    const split = document.createElement("div");
+    split.className = "bigSplit";
+
+    const buildBigCol = (title, items, groupId) => {
+      const col = document.createElement("div");
+      col.className = "bigCol";
+
+      const head = document.createElement("div");
+      head.style.display = "flex";
+      head.style.justifyContent = "space-between";
+      head.style.alignItems = "center";
+      head.style.gap = "8px";
+
+      const h5 = document.createElement("h5");
+      h5.textContent = title;
+      h5.style.margin = "0";
+      head.appendChild(h5);
+
+      const keysAll = [...new Set(items.map((r) => r.key).filter(Boolean))];
+      if (keysAll.length) {
+        const allVisible = keysAll.every((k) => !hiddenLineKeys.has(k));
+        const groupToggle = document.createElement("label");
+        groupToggle.className = "groupToggleLabel";
+        groupToggle.innerHTML = `<input type="checkbox" data-group-toggle="${groupId}" ${allVisible ? "checked" : ""} /> linie`;
+        head.appendChild(groupToggle);
+      }
+
+      col.appendChild(head);
+
+      if (!items.length) {
+        const list = document.createElement("div");
+        list.className = "priceList";
+        const rr = document.createElement("div");
+        rr.className = "priceRow";
+        rr.innerHTML = `<span>Brak danych</span><span>—</span>`;
+        list.appendChild(rr);
+        col.appendChild(list);
+        return col;
+      }
+
+      const colsWrap = document.createElement("div");
+      colsWrap.className = "metricsCols";
+
+      for (let i = 0; i < items.length; i += 4) {
+        const metricCol = document.createElement("div");
+        metricCol.className = "metricCol";
+        items.slice(i, i + 4).forEach((row) => {
+          const line = document.createElement("div");
+          line.className = "metricLine";
+          const checked = row.key ? !hiddenLineKeys.has(row.key) : true;
+          const toggleHtml = row.key
+            ? `<input type="checkbox" class="metricToggle" data-line-key="${row.key}" ${checked ? "checked" : ""} />`
+            : "";
+          line.innerHTML = `${toggleHtml}<span class="k">${row.label}:</span><span class="v">${formatValueWithTick(row.value, close[idx])}</span>`;
+          metricCol.appendChild(line);
+        });
+        colsWrap.appendChild(metricCol);
+      }
+
+      colsWrap.querySelectorAll("input.metricToggle").forEach((el) => {
+        el.addEventListener("change", () => {
+          const key = el.getAttribute("data-line-key");
+          if (!key) return;
+          if (el.checked) hiddenLineKeys.delete(key);
+          else hiddenLineKeys.add(key);
+          draw();
+        });
+      });
+
+      col.querySelectorAll("input[data-group-toggle]").forEach((el) => {
+        el.addEventListener("change", () => {
+          const checked = !!el.checked;
+          const keys = [...new Set(items.map((r) => r.key).filter(Boolean))];
+          keys.forEach((k) => {
+            if (checked) hiddenLineKeys.delete(k);
+            else hiddenLineKeys.add(k);
+          });
+          draw();
+        });
+      });
+
+      col.appendChild(colsWrap);
+      return col;
+    };
+
+    const colA = buildBigCol(`Główny TF ${bigTf}`, mainBigVals.slice(0, 32), "main");
+    const colB = buildBigCol("Pozostałe interwały", otherBigVals.slice(0, 32), "other");
+
+    split.appendChild(colA);
+    split.appendChild(colB);
+    wide.appendChild(split);
+    bigWrap.appendChild(wide);
+  }
+}
+
+function buildFeatureToggles() {
+  toggleGridEl.innerHTML = "";
+  FEATURES.forEach((f) => {
+    const lab = document.createElement("label");
+    lab.className = "tick";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = !!featureState[f.key];
+    input.addEventListener("change", () => {
+      featureState[f.key] = input.checked;
+      saveFeatureState();
+      draw();
+    });
+
+    const tx = document.createElement("div");
+    tx.innerHTML = `<strong>${f.label}</strong><small>${f.desc}</small>`;
+
+    lab.appendChild(input);
+    lab.appendChild(tx);
+    toggleGridEl.appendChild(lab);
+  });
+}
+
+const view = {
+  i0: 0,
+  i1: 0,
+  yMid: null,
+  ySpan: null,
+  dragging: false,
+  dragX: 0,
+  dragY: 0,
+  drag_i0: 0,
+  drag_i1: 0,
+  drag_yMid: 0,
+};
+
+const Y_MARGIN_PCT = 0.20;
+
+function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+function clampInt(x, a, b) { return Math.max(a, Math.min(b, Math.floor(x))); }
+
+function detectPriceDecimals(x) {
+  const v = Math.abs(Number(x));
+  if (!Number.isFinite(v)) return 2;
+
+  let dec = 2;
+  if (v < 100) dec = 3;
+  if (v < 10) dec = 4;
+  if (v < 1) dec = 5;
+  if (v < 0.1) dec = 6;
+  if (v < 0.01) dec = 7;
+  if (v < 0.001) dec = 8;
+
+  if (Number.isFinite(view?.ySpan) && view.ySpan > 0) {
+    const step = view.ySpan / 6;
+    if (step > 0) {
+      const spanDec = Math.ceil(-Math.log10(step)) + 1;
+      dec = Math.max(dec, clampInt(spanDec, 2, 10));
+    }
+  }
+
+  return clampInt(dec, 2, 10);
+}
+
+function fmt2(x) {
+  if (!(typeof x === "number" && isFinite(x))) return "—";
+  const dec = detectPriceDecimals(x);
+  let s = x.toFixed(dec);
+
+  if (dec > 2) {
+    s = s.replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, "");
+  }
+  return s;
+}
+
+const SUDDEN_KEYS = [
+  "momentumScore",
+  "pressureScore",
+  "shockScore",
+  "botSignal",
+  "cci",
+  "adx14",
+  "atrPct",
+  "emaSpreadPct",
+];
+
+const SUDDEN_BASE_THRESHOLDS = {
+  momentumScore: 0.42,
+  pressureScore: 0.42,
+  shockScore: 0.42,
+  botSignal: 0.55,
+  cci: 22,
+  adx14: 2.1,
+  atrPct: 0.045,
+  emaSpreadPct: 0.07,
+};
+
+function getTf10Pack() {
+  const tfs = DATA?.tfs || {};
+  const pack = tfs["10"] || tfs["10m"] || tfs["10M"] || null;
+  if (!pack || !Array.isArray(pack.regimes) || !pack.regimes.length) return null;
+  const r = pack.regimes[0] || {};
+  const upper = Number(r.upper);
+  const lower = Number(r.lower);
+  if (!Number.isFinite(upper) || !Number.isFinite(lower)) return null;
+  return { upper, lower };
+}
+
+function percentile(sortedValues, p) {
+  if (!Array.isArray(sortedValues) || !sortedValues.length) return 0;
+  const pp = clamp(Number(p), 0, 1);
+  const pos = (sortedValues.length - 1) * pp;
+  const i0 = Math.floor(pos);
+  const i1 = Math.min(sortedValues.length - 1, i0 + 1);
+  const frac = pos - i0;
+  return sortedValues[i0] * (1 - frac) + sortedValues[i1] * frac;
+}
+
+function getMetricDeltaAbsWindow(rows, idx, key, lookback = 36) {
+  const out = [];
+  const start = Math.max(1, idx - lookback);
+  for (let i = start; i <= idx; i++) {
+    const v1 = Number(rows[i]?.[key]);
+    const v0 = Number(rows[i - 1]?.[key]);
+    if (!Number.isFinite(v1) || !Number.isFinite(v0)) continue;
+    out.push(Math.abs(v1 - v0));
+  }
+  out.sort((a, b) => a - b);
+  return out;
+}
+
+function classifyBreakout10(price, prevPrice, nextPrice, tf10) {
+  if (!tf10 || !Number.isFinite(price)) return { dir: 0, confirmed: false };
+
+  if (price > tf10.upper) {
+    const confirmed =
+      (Number.isFinite(prevPrice) && prevPrice > tf10.upper) ||
+      (Number.isFinite(nextPrice) && nextPrice > tf10.upper);
+    return { dir: 1, confirmed };
+  }
+
+  if (price < tf10.lower) {
+    const confirmed =
+      (Number.isFinite(prevPrice) && prevPrice < tf10.lower) ||
+      (Number.isFinite(nextPrice) && nextPrice < tf10.lower);
+    return { dir: -1, confirmed };
+  }
+
+  return { dir: 0, confirmed: false };
+}
+
+function buildSuddenFlags() {
+  const rows = Array.isArray(indicatorStore.rows) ? indicatorStore.rows : [];
+  if (rows.length < 3) return [];
+
+  const tf10 = getTf10Pack();
+  if (!tf10) return [];
+
+  const events = [];
+
+  for (let i = 1; i < rows.length - 1; i++) {
+    const cur = rows[i] || {};
+    const prev = rows[i - 1] || {};
+    const next = rows[i + 1] || {};
+
+    const price = Number(cur.price);
+    const prevPrice = Number(prev.price);
+    const nextPrice = Number(next.price);
+
+    const br = classifyBreakout10(price, prevPrice, nextPrice, tf10);
+    if (!br.confirmed || br.dir === 0) continue;
+
+    let count = 0;
+    for (const key of SUDDEN_KEYS) {
+      const currVal = Number(cur[key]);
+      const prevVal = Number(prev[key]);
+      if (!Number.isFinite(currVal) || !Number.isFinite(prevVal)) continue;
+
+      const delta = currVal - prevVal;
+      if (delta * br.dir <= 0) continue;
+
+      const recent = getMetricDeltaAbsWindow(rows, i - 1, key, 36);
+      const p85 = recent.length >= 8 ? percentile(recent, 0.85) : 0;
+      const threshold = Math.max(Number(SUDDEN_BASE_THRESHOLDS[key] || 0.3), p85 * 1.15);
+      if (Math.abs(delta) >= threshold) count += 1;
+    }
+
+    if (count <= 0) continue;
+
+    const tsMs = Number(cur.tsMs);
+    if (!Number.isFinite(tsMs)) continue;
+
+    const prevEv = events[events.length - 1];
+    if (prevEv && Math.abs(tsMs - prevEv.tsMs) <= 2 * 60_000 && prevEv.dir === br.dir) {
+      if (count > prevEv.count) prevEv.count = count;
+      continue;
+    }
+
+    events.push({ tsMs, price, dir: br.dir, count });
+  }
+
+  return events;
+}
+
+function getSuddenFlagsCached() {
+  const rows = Array.isArray(indicatorStore.rows) ? indicatorStore.rows : [];
+  const lastTs = Number(rows.at(-1)?.tsMs || 0);
+  const tf10 = getTf10Pack();
+  const key = [
+    rows.length,
+    lastTs,
+    tf10 ? `${tf10.upper}|${tf10.lower}` : "no10",
+    DATA?.updatedAt || "",
+  ].join("|");
+
+  if (key !== suddenFlagsCacheKey) {
+    suddenFlagsCache = buildSuddenFlags();
+    suddenFlagsCacheKey = key;
+  }
+  return suddenFlagsCache;
+}
+
+function drawSuddenFlags(close, times) {
+  if (!suddenFlagsEnabled) return;
+  const flags = getSuddenFlagsCached();
+  if (!flags.length) return;
+
+  const n = view.i1 - view.i0;
+  if (n < 2) return;
+
+  g.save();
+  for (const ev of flags) {
+    const idx = nearestIndexByTs(times, Number(ev.tsMs));
+    if (idx < view.i0 || idx >= view.i1) continue;
+    const p = Number.isFinite(Number(ev.price)) ? Number(ev.price) : Number(close[idx]);
+    if (!Number.isFinite(p)) continue;
+
+    const x = xOf(idx - view.i0, n);
+    const y = yOf(p);
+    const up = ev.dir > 0;
+    const markerColor = up ? "rgba(56, 211, 159, 0.78)" : "rgba(255, 96, 96, 0.78)";
+    const textColor = up ? "rgba(210, 255, 236, 0.98)" : "rgba(255, 230, 230, 0.98)";
+    const yOffset = up ? -13 : 13;
+
+    g.beginPath();
+    g.fillStyle = markerColor;
+    g.arc(x, y + yOffset, 7.5, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = textColor;
+    g.font = "700 10px system-ui, Arial";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(String(ev.count), x, y + yOffset + 0.5);
+  }
+  g.restore();
+}
+
+function minPriceSpan(refPrice) {
+  const p = Math.abs(Number(refPrice));
+  if (!Number.isFinite(p) || p <= 0) return 0.0001;
+  return Math.max(p * 0.003, 0.0001); // min ~0.3% ceny
+}
+
+function minMax(arr) {
+  let mn = Infinity, mx = -Infinity;
+  for (const x of arr) {
+    if (typeof x !== "number" || !isFinite(x)) continue;
+    mn = Math.min(mn, x);
+    mx = Math.max(mx, x);
+  }
+  if (!isFinite(mn) || !isFinite(mx)) return { mn: 0, mx: 1 };
+  if (mn === mx) return { mn: mn * 0.999, mx: mx * 1.001 };
+  return { mn, mx };
+}
+
+function nearestIndexByTs(times, ts) {
+  if (!Array.isArray(times) || !times.length || !Number.isFinite(ts)) return -1;
+  let lo = 0;
+  let hi = times.length - 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (times[mid] < ts) lo = mid + 1;
+    else hi = mid;
+  }
+  const idx = lo;
+  if (idx <= 0) return 0;
+  const prev = idx - 1;
+  return Math.abs(times[idx] - ts) < Math.abs(times[prev] - ts) ? idx : prev;
+}
+
+function fitYToVisibleClose() {
+  if (!DATA?.plot?.close?.length) return;
+  const i0 = clamp(view.i0, 0, DATA.plot.close.length - 2);
+  const i1 = clamp(view.i1, i0 + 2, DATA.plot.close.length);
+  const slice = DATA.plot.close.slice(i0, i1);
+  const mm = minMax(slice);
+  const baseRange = Math.max(mm.mx - mm.mn, 1e-12);
+  const paddedMin = mm.mn - baseRange * Y_MARGIN_PCT;
+  const paddedMax = mm.mx + baseRange * Y_MARGIN_PCT;
+  const mid = (paddedMin + paddedMax) / 2;
+  const span = Math.max(minPriceSpan(mid), paddedMax - paddedMin);
+  view.yMid = mid;
+  view.ySpan = span;
+}
+
+function mouseToCanvas(e) {
+  const rect = cv.getBoundingClientRect();
+  const sx = cv.width / Math.max(1, rect.width);
+  const sy = cv.height / Math.max(1, rect.height);
+  return {
+    x: (e.clientX - rect.left) * sx,
+    y: (e.clientY - rect.top) * sy,
+  };
+}
+
+function updateTimelineInfo() {
+  if (!DATA?.plot?.t?.length) {
+    timelineFromInfoEl.textContent = "Od —";
+    timelineInfoEl.textContent = "Do —";
+    return;
+  }
+  const t = DATA.plot.t;
+  const i0 = clamp(Number(timelineStartEl.value || 0), 0, t.length - 1);
+  const i1 = clamp(Number(timelineEndEl.value || t.length - 1), 0, t.length - 1);
+  const d0 = new Date(t[i0]);
+  const d1 = new Date(t[i1]);
+  const f = (d) => `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  timelineFromInfoEl.textContent = `Od ${f(d0)}`;
+  timelineInfoEl.textContent = `Do ${f(d1)}`;
+}
+
+function syncTimelineFromView() {
+  if (!DATA?.plot?.t?.length) return;
+  const max = DATA.plot.t.length - 1;
+  timelineStartEl.max = String(max);
+  timelineEndEl.max = String(max);
+  timelineStartEl.value = String(clamp(view.i0, 0, max));
+  timelineEndEl.value = String(clamp(view.i1 - 1, 0, max));
+  updateTimelineInfo();
+}
+
+function applyTimelineRange(source) {
+  if (!DATA?.plot?.t?.length) return;
+  const max = DATA.plot.t.length - 1;
+  const minBars = 40;
+  let s = clamp(Number(timelineStartEl.value || 0), 0, max);
+  let e = clamp(Number(timelineEndEl.value || max), 0, max);
+
+  if (source === "start" && s > e - minBars) s = Math.max(0, e - minBars);
+  if (source === "end" && e < s + minBars) e = Math.min(max, s + minBars);
+  if (e <= s) e = Math.min(max, s + 1);
+
+  timelineStartEl.value = String(s);
+  timelineEndEl.value = String(e);
+
+  view.i0 = s;
+  view.i1 = e + 1;
+  fitYToVisibleClose();
+  updateTimelineInfo();
+  draw();
+}
+
+const PAD_L = 104, PAD_R = 20, PAD_T = 18, PAD_B = 40;
+
+function xOf(i, n) {
+  const w = cv.width - PAD_L - PAD_R;
+  const t = (i / Math.max(1, n - 1));
+  return PAD_L + t * w;
+}
+function yOf(p) {
+  const h = cv.height - PAD_T - PAD_B;
+  const mn = view.yMid - view.ySpan / 2;
+  const mx = view.yMid + view.ySpan / 2;
+  const t = (p - mn) / (mx - mn);
+  return (cv.height - PAD_B) - t * h;
+}
+function pOfY(y) {
+  const h = cv.height - PAD_T - PAD_B;
+  const mn = view.yMid - view.ySpan / 2;
+  const mx = view.yMid + view.ySpan / 2;
+  const t = ((cv.height - PAD_B) - y) / h;
+  return mn + t * (mx - mn);
+}
+
+function zoomPriceByFactor(factor, anchorPrice = null) {
+  if (!DATA) return;
+  const pAt = Number.isFinite(anchorPrice) ? anchorPrice : view.yMid;
+  const minSpan = minPriceSpan(Math.abs(pAt) > 0 ? pAt : view.yMid);
+  const newSpan = clamp(view.ySpan * factor, minSpan, 1e9);
+  const k = (pAt - view.yMid) / (view.ySpan / 2);
+  const newMid = pAt - k * (newSpan / 2);
+  view.ySpan = newSpan;
+  view.yMid = newMid;
+}
+
+function zoomTimelineByFactor(factor, anchorX = (PAD_L + (cv.width - PAD_R)) / 2) {
+  if (!DATA?.plot?.t?.length) return;
+
+  const total = DATA.plot.t.length;
+  const n = view.i1 - view.i0;
+  const tt = clamp((anchorX - PAD_L) / (cv.width - PAD_L - PAD_R), 0, 1);
+  const center = view.i0 + tt * n;
+
+  const minBars = 40;
+  const newN = clamp(Math.round(n * factor), minBars, total);
+  let i0 = Math.round(center - tt * newN);
+  let i1 = i0 + newN;
+
+  if (i0 < 0) {
+    i1 -= i0;
+    i0 = 0;
+  }
+  if (i1 > total) {
+    const d = i1 - total;
+    i0 -= d;
+    i1 -= d;
+  }
+
+  i0 = clamp(i0, 0, total - 2);
+  i1 = clamp(i1, i0 + 2, total);
+
+  view.i0 = i0;
+  view.i1 = i1;
+  syncTimelineFromView();
+}
+
+function drawGrid() {
+  g.clearRect(0,0,cv.width,cv.height);
+  g.fillStyle = "#000000";
+  g.fillRect(0,0,cv.width,cv.height);
+
+  g.strokeStyle = "rgba(255,255,255,0.10)";
+  g.lineWidth = 1;
+
+  const n = view.i1 - view.i0;
+  const step = Math.max(50, Math.floor(n / 10));
+
+  for (let k=0; k<=10; k++) {
+    const i = view.i0 + k * step;
+    if (i >= view.i1) break;
+    const x = xOf(i - view.i0, n);
+    g.beginPath();
+    g.moveTo(x, PAD_T);
+    g.lineTo(x, cv.height - PAD_B);
+    g.stroke();
+  }
+
+  const ySteps = 6;
+  for (let k=0; k<=ySteps; k++) {
+    const y = PAD_T + k * ((cv.height - PAD_T - PAD_B) / ySteps);
+    g.beginPath();
+    g.moveTo(PAD_L, y);
+    g.lineTo(cv.width - PAD_R, y);
+    g.stroke();
+  }
+}
+
+function drawAxesLabels(times) {
+  g.fillStyle = "rgba(238,246,255,0.98)";
+  g.font = "700 14px system-ui, Arial";
+  g.textAlign = "right";
+  g.shadowColor = "rgba(0,0,0,0.85)";
+  g.shadowBlur = 2;
+  g.shadowOffsetX = 0;
+  g.shadowOffsetY = 1;
+
+  const ySteps = 6;
+  for (let k=0; k<=ySteps; k++) {
+    const y = PAD_T + k * ((cv.height - PAD_T - PAD_B) / ySteps);
+    const p = pOfY(y);
+    g.fillText(fmt2(p), PAD_L - 10, y + 4);
+  }
+
+  g.textAlign = "center";
+  g.fillStyle = "rgba(230,241,255,0.92)";
+  g.font = "700 13px system-ui, Arial";
+
+  const n = view.i1 - view.i0;
+  const step = Math.max(50, Math.floor(n / 6));
+
+  for (let k=0; k<=6; k++) {
+    const idx = view.i0 + k * step;
+    if (idx >= view.i1) break;
+
+    const x = xOf(k * step, n);
+    const ts = times[idx];
+    const d = new Date(ts);
+    const label =
+      `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")} ` +
+      `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    g.fillText(label, x, cv.height - 16);
+  }
+  g.shadowColor = "transparent";
+  g.shadowBlur = 0;
+}
+
+function drawSeriesClose(close) {
+  const n = view.i1 - view.i0;
+  if (n < 2) return;
+
+  g.strokeStyle = "#ffd84d";
+  g.lineWidth = 2;
+  g.beginPath();
+
+  for (let j=0; j<n; j++) {
+    const i = view.i0 + j;
+    const x = xOf(j, n);
+    const y = yOf(close[i]);
+    if (j === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.stroke();
+}
+
+function drawHLine(price, color, label, dash=true, thickness=1.5, dashArr=[6,6]) {
+  if (typeof price !== "number" || !isFinite(price)) return;
+  const y = yOf(price);
+
+  g.save();
+  g.strokeStyle = color;
+  g.lineWidth = thickness;
+  if (dash) g.setLineDash(dashArr);
+
+  g.beginPath();
+  g.moveTo(PAD_L, y);
+  g.lineTo(cv.width - PAD_R, y);
+  g.stroke();
+
+  g.setLineDash([]);
+  g.restore();
+}
+
+function drawBotOrdersOverlay() {
+  if (!featureState.ordersLayer) return;
+
+  const orders = Array.isArray(botUiStore?.snapshot?.orders) ? botUiStore.snapshot.orders : [];
+  if (!orders.length) return;
+
+  const left = PAD_L;
+  const right = cv.width - PAD_R;
+  const hoveredKey = String(botUiStore.hoveredOrderKey || "");
+
+  g.save();
+
+  for (const o of orders) {
+    const price = Number(o?.price);
+    if (!Number.isFinite(price) || price <= 0) continue;
+
+    const side = String(o?.side || "").toLowerCase();
+    const y = yOf(price);
+    if (!Number.isFinite(y) || y < PAD_T - 2 || y > cv.height - PAD_B + 2) continue;
+
+    const thisKey = buildOrderHoverKey(o);
+    const isHovered = !!hoveredKey && hoveredKey === thisKey;
+    const isG2 = String(o?.gridTag || "").toUpperCase() === "G2";
+    g.lineWidth = isHovered ? 3 : 1;
+    // Grid 1 = dotted [2,5], Grid 2 = dashed [8,4]
+    g.setLineDash(isHovered ? [] : (isG2 ? [8, 4] : [2, 5]));
+    g.strokeStyle = isG2
+      ? (side === "sell"
+          ? (isHovered ? "rgba(220,130,255,1)" : "rgba(200,140,255,0.82)")
+          : (isHovered ? "rgba(140,200,255,1)" : "rgba(130,180,255,0.82)"))
+      : (side === "sell"
+          ? (isHovered ? "rgba(255,70,70,1)" : "rgba(255,105,105,0.86)")
+          : (isHovered ? "rgba(80,255,120,1)" : "rgba(102,236,142,0.86)"));
+    g.beginPath();
+    g.moveTo(left, y);
+    g.lineTo(right, y);
+    g.stroke();
+  }
+
+  g.setLineDash([]);
+  g.restore();
+}
+
+/* =========================================================
+   FILL FLAGS — subtle green/red markers on the chart at fill prices
+   Hover shows: side, price, qty (base), notional (quote), time
+========================================================= */
+const _fillFlagHitCache = [];
+
+function drawFillFlags() {
+  _fillFlagHitCache.length = 0;
+  if (!featureState.fillFlags) return;
+
+  const fills = Array.isArray(botUiStore?.snapshot?.recentFills) ? botUiStore.snapshot.recentFills : [];
+  if (!fills.length) return;
+  if (!DATA?.plot?.t?.length) return;
+
+  const times = DATA.plot.t;
+  const n = view.i1 - view.i0;
+  if (n < 2) return;
+
+  // kind-based color palette (all use side green/red; COUNTER adds purple tint via label)
+  const kindColors = {
+    LOOP:    { pole: null, flag: null }, // uses side color (green buy / red sell)
+    COUNTER: { pole: null, flag: null }, // uses side color
+    GRID:    { pole: null, flag: null }, // uses side color
+  };
+  const sideColors = {
+    buy:  { pole: "rgba(72, 210, 130, 0.70)",  flag: "rgba(72, 210, 130, 0.82)"  },
+    sell: { pole: "rgba(255, 100, 100, 0.70)", flag: "rgba(255, 100, 100, 0.82)" },
+  };
+
+  g.save();
+  for (const fl of fills) {
+    const price = Number(fl.price);
+    const ts = Number(fl.ts);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    if (!Number.isFinite(ts)) continue;
+
+    const idx = nearestIndexByTs(times, ts);
+    if (idx < view.i0 || idx >= view.i1) continue;
+
+    const x = xOf(idx - view.i0, n);
+    const y = yOf(price);
+    if (y < PAD_T - 10 || y > cv.height - PAD_B + 10) continue;
+
+    const isBuy = String(fl.side || "").toLowerCase() === "buy";
+    const kind = String(fl.kind || "").toUpperCase();
+    const isG2 = String(fl.gridTag || "").toUpperCase() === "G2";
+
+    // pick color by grid tag: G2 gets purple-tinted colors
+    const kc = kindColors[kind];
+    const sc = isG2
+      ? { pole: "rgba(180,140,255,0.70)", flag: "rgba(180,140,255,0.82)" }
+      : sideColors[isBuy ? "buy" : "sell"];
+    const poleColor = kc?.pole || sc.pole;
+    const flagColor = kc?.flag || sc.flag;
+
+    // flag pole — thicker, higher
+    const poleH = 28;
+    const poleDir = isBuy ? 1 : -1;
+    const poleTop = y + poleDir * 2;
+    const poleBottom = y + poleDir * poleH;
+
+    g.strokeStyle = poleColor;
+    g.lineWidth = 1.8;
+    g.setLineDash([]);
+    g.beginPath();
+    g.moveTo(x, poleTop);
+    g.lineTo(x, poleBottom);
+    g.stroke();
+
+    // flag shape — triangle for G1, diamond for G2
+    const flagW = 12;
+    const flagH = 9;
+    const fy = poleBottom;
+    g.fillStyle = flagColor;
+    g.beginPath();
+    if (isG2) {
+      // diamond shape for Grid 2
+      const dw = flagW * 0.6, dh = flagH;
+      g.moveTo(x, fy);
+      g.lineTo(x + dw, fy + (poleDir * dh) / 2);
+      g.lineTo(x, fy + poleDir * dh);
+      g.lineTo(x - dw, fy + (poleDir * dh) / 2);
+    } else {
+      // standard triangle flag for Grid 1
+      g.moveTo(x, fy);
+      g.lineTo(x + flagW, fy + (poleDir * flagH) / 2);
+      g.lineTo(x, fy + poleDir * flagH);
+    }
+    g.closePath();
+    g.fill();
+
+    // small dot at exact fill price for precision
+    g.fillStyle = flagColor;
+    g.beginPath();
+    g.arc(x, y, 2.8, 0, Math.PI * 2);
+    g.fill();
+
+    // kind label next to flag (1-letter: L/C/G or side initial)
+    const label = kind === "LOOP" ? "L" : kind === "COUNTER" ? "C" : kind === "GRID" ? "G" : "";
+    if (label) {
+      g.font = "bold 9px system-ui, Arial";
+      g.textAlign = "left";
+      g.fillStyle = flagColor;
+      g.fillText(label, x + flagW + 2, fy + poleDir * (flagH / 2) + 3);
+    }
+
+    // store hit zone for hover
+    _fillFlagHitCache.push({
+      x, y: Math.min(poleTop, poleBottom) - 4,
+      w: flagW + 4,
+      h: Math.abs(poleBottom - poleTop) + flagH + 8,
+      fl,
+    });
+  }
+  g.restore();
+}
+
+function getFillFlagAtPos(mx, my) {
+  for (const h of _fillFlagHitCache) {
+    if (mx >= h.x - 6 && mx <= h.x + h.w + 2 && my >= h.y && my <= h.y + h.h) {
+      return h.fl;
+    }
+  }
+  return null;
+}
+
+function drawFillFlagTooltip(mx, my) {
+  const fl = getFillFlagAtPos(mx, my);
+  if (!fl) return;
+
+  const isBuy = String(fl.side || "").toLowerCase() === "buy";
+  const side = isBuy ? "BUY" : "SELL";
+  const price = Number(fl.price || 0);
+  const qty = Number(fl.qty || 0);
+  const notional = Number(fl.notional || 0);
+  const kind = String(fl.kind || "");
+  const dt = new Date(Number(fl.ts || 0));
+  const timeStr = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}:${String(dt.getSeconds()).padStart(2, "0")}`;
+  const dateStr = `${String(dt.getDate()).padStart(2, "0")}.${String(dt.getMonth() + 1).padStart(2, "0")}`;
+
+  const lines = [
+    `${side} ${kind} @ ${fmt2(price)}`,
+    `base: ${qty.toFixed(8)}`,
+    `quote: ${notional.toFixed(4)} USDT`,
+    `${dateStr} ${timeStr}`,
+  ];
+
+  const lineH = 16 * UI_LABEL_SCALE;
+  const pad = 8 * UI_LABEL_SCALE;
+  const boxW = 200 * UI_LABEL_SCALE;
+  const boxH = lines.length * lineH + pad * 2;
+  let tx = mx + 14;
+  let ty = my - boxH / 2;
+  if (tx + boxW > cv.width - PAD_R) tx = mx - boxW - 10;
+  if (ty < PAD_T) ty = PAD_T;
+  if (ty + boxH > cv.height - PAD_B) ty = cv.height - PAD_B - boxH;
+
+  g.save();
+  g.fillStyle = "rgba(9, 16, 24, 0.92)";
+  if (g.roundRect) {
+    g.beginPath();
+    g.roundRect(tx, ty, boxW, boxH, 6);
+    g.fill();
+    g.strokeStyle = isBuy ? "rgba(72, 210, 130, 0.6)" : "rgba(255, 100, 100, 0.6)";
+    g.lineWidth = 1;
+    g.stroke();
+  } else {
+    g.fillRect(tx, ty, boxW, boxH);
+  }
+
+  g.font = `${12 * UI_LABEL_SCALE}px system-ui, Arial`;
+  g.textAlign = "left";
+  g.fillStyle = isBuy ? "rgba(130, 255, 190, 0.96)" : "rgba(255, 170, 170, 0.96)";
+  g.fillText(lines[0], tx + pad, ty + pad + 12 * UI_LABEL_SCALE);
+  g.fillStyle = "rgba(220, 238, 255, 0.90)";
+  for (let i = 1; i < lines.length; i++) {
+    g.fillText(lines[i], tx + pad, ty + pad + 12 * UI_LABEL_SCALE + i * lineH);
+  }
+  g.restore();
+}
+
+function drawBoxChannelStyled(upper, lower, color, label, dashArr=[10,6], thickness=2) {
+  if (![upper, lower].every((x)=>typeof x==="number" && isFinite(x))) return;
+  const yU = yOf(upper);
+  const yL = yOf(lower);
+
+  g.save();
+  g.strokeStyle = color;
+  g.lineWidth = thickness;
+  g.setLineDash(dashArr);
+
+  g.beginPath();
+  g.moveTo(PAD_L, yU); g.lineTo(cv.width - PAD_R, yU);
+  g.moveTo(PAD_L, yL); g.lineTo(cv.width - PAD_R, yL);
+  g.stroke();
+
+  g.setLineDash([]);
+  g.restore();
+}
+
+function drawTrendChannel(dom, color, label) {
+  if (!dom || !dom.ok) return;
+
+  const i0 = dom.startIndex;
+  const i1 = dom.endIndex;
+  if (i1 < view.i0 || i0 > view.i1) return;
+
+  const v0 = Math.max(view.i0, i0);
+  const v1 = Math.min(view.i1 - 1, i1);
+  const n = view.i1 - view.i0;
+
+  const lowerShift = Math.max(0, Number(dom.lowerStartOffsetBars) || 0);
+  const lowerStart = i0 + lowerShift;
+
+  // upper line: from i0
+  const xA = v0 - i0;
+  const xB = v1 - i0;
+  const upA = dom.upperSlope * xA + dom.bUpper;
+  const upB = dom.upperSlope * xB + dom.bUpper;
+
+  const xPixA = xOf(v0 - view.i0, n);
+  const xPixB = xOf(v1 - view.i0, n);
+
+  // lower line: from lowerStart
+  const v0L = Math.max(v0, lowerStart);
+  const xAL = v0L - i0;
+  const xBL = v1 - i0;
+
+  const dnA = dom.lowerSlope * xAL + dom.bLower;
+  const dnB = dom.lowerSlope * xBL + dom.bLower;
+
+  const xPixAL = xOf(v0L - view.i0, n);
+  const xPixBL = xOf(v1 - view.i0, n);
+
+  g.save();
+  g.strokeStyle = color;
+  g.lineWidth = 2.2;
+  g.setLineDash([10,6]);
+
+  g.beginPath();
+  g.moveTo(xPixA, yOf(upA));
+  g.lineTo(xPixB, yOf(upB));
+  g.stroke();
+
+  g.beginPath();
+  g.moveTo(xPixAL, yOf(dnA));
+  g.lineTo(xPixBL, yOf(dnB));
+  g.stroke();
+
+  g.setLineDash([]);
+
+  g.restore();
+}
+
+/* ✅ NEW: draw box (red) + impulse trend channel (purple) */
+function drawImpulseBoxAndTrend(it) {
+  if (!it || !it.ok) return;
+
+  const nView = view.i1 - view.i0;
+
+  // box lines (red)
+  const U = it.box?.upper, L = it.box?.lower;
+  if (typeof U === "number" && isFinite(U)) {
+    drawHLine(U, "rgba(255,70,70,0.85)", `Impulse → Trend BOX U ${fmt2(U)} (width≈${fmt2(it.box.widthPct)}% inside=${(it.box.insideFrac||0).toFixed(2)})`, true, 2.2, [14,6]);
+  }
+  if (typeof L === "number" && isFinite(L)) {
+    drawHLine(L, "rgba(255,70,70,0.85)", `Impulse → Trend BOX L ${fmt2(L)} preBars=${it.box.preBars}`, true, 2.2, [14,6]);
+  }
+
+  // trend channel (purple) — tylko na odcinku trendu
+  const t0 = it.trend?.startIndex;
+  const t1 = it.trend?.endIndex;
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return;
+  if (t1 < view.i0 || t0 > view.i1) return;
+
+  const v0 = Math.max(view.i0, t0);
+  const v1 = Math.min(view.i1 - 1, t1);
+
+  const m = it.trend.m, b = it.trend.b;
+  const qU = it.trend.qUpper, qL = it.trend.qLower;
+
+  // rysujemy jako dwie proste: up/dn
+  const xA = v0 - t0;
+  const xB = v1 - t0;
+
+  const upA = m * xA + b + qU;
+  const upB = m * xB + b + qU;
+  const dnA = m * xA + b + qL;
+  const dnB = m * xB + b + qL;
+
+  const xPixA = xOf(v0 - view.i0, nView);
+  const xPixB = xOf(v1 - view.i0, nView);
+
+  g.save();
+  g.strokeStyle = "rgba(205,90,255,0.92)";
+  g.lineWidth = 2.6;
+  g.setLineDash([12,6]);
+
+  g.beginPath();
+  g.moveTo(xPixA, yOf(upA));
+  g.lineTo(xPixB, yOf(upB));
+  g.stroke();
+
+  g.beginPath();
+  g.moveTo(xPixA, yOf(dnA));
+  g.lineTo(xPixB, yOf(dnB));
+  g.stroke();
+
+  g.setLineDash([]);
+
+  g.restore();
+}
+
+function drawSide4hOverlayOnMain(side4h, times) {
+  if (!side4h?.ok) return;
+  const frames = side4h.frames || [];
+  if (!frames.length) return;
+
+  const nView = view.i1 - view.i0;
+  if (nView < 2) return;
+
+  for (const fr of frames) {
+    const ts0 = Number(fr.startTs);
+    const ts1 = Number(fr.endTs);
+    if (!Number.isFinite(ts0) || !Number.isFinite(ts1) || ts1 <= ts0) continue;
+
+    const iStart = nearestIndexByTs(times, ts0);
+    const iEnd = nearestIndexByTs(times, ts1);
+    if (!Number.isFinite(iStart) || !Number.isFinite(iEnd) || iStart < 0 || iEnd < 0 || iEnd <= iStart) continue;
+    if (iEnd < view.i0 || iStart > view.i1 - 1) continue;
+
+    const v0 = Math.max(view.i0, iStart);
+    const v1 = Math.min(view.i1 - 1, iEnd);
+    if (v1 <= v0) continue;
+
+    const color = fr.overlapsCurrent ? "rgba(193,107,255,0.95)" : "rgba(76,225,214,0.92)";
+
+    const interp = (a, b, f) => a + (b - a) * f;
+    const fracA = (times[v0] - ts0) / Math.max(1, (ts1 - ts0));
+    const fracB = (times[v1] - ts0) / Math.max(1, (ts1 - ts0));
+
+    const upA = interp(fr.upper0, fr.upper1, clamp(fracA, 0, 1));
+    const upB = interp(fr.upper0, fr.upper1, clamp(fracB, 0, 1));
+    const dnA = interp(fr.lower0, fr.lower1, clamp(fracA, 0, 1));
+    const dnB = interp(fr.lower0, fr.lower1, clamp(fracB, 0, 1));
+
+    const xPixA = xOf(v0 - view.i0, nView);
+    const xPixB = xOf(v1 - view.i0, nView);
+
+    g.save();
+    g.strokeStyle = color;
+    g.lineWidth = fr.overlapsCurrent ? 2.7 : 2.1;
+    g.setLineDash(fr.overlapsCurrent ? [11, 5] : [7, 6]);
+
+    g.beginPath();
+    g.moveTo(xPixA, yOf(upA));
+    g.lineTo(xPixB, yOf(upB));
+    g.stroke();
+
+    g.beginPath();
+    g.moveTo(xPixA, yOf(dnA));
+    g.lineTo(xPixB, yOf(dnB));
+    g.stroke();
+
+    g.setLineDash([]);
+    g.restore();
+  }
+}
+
+function rebuildViewDefault() {
+  const close = DATA.plot.close;
+  const total = close.length;
+  const defaultBars = 220;
+  view.i1 = total;
+  view.i0 = Math.max(0, total - defaultBars);
+
+  const all = close.slice();
+
+  const bigTf = DATA.placements?.bigTf || "60";
+  const big = DATA.tfs?.[bigTf] || {};
+  const bigLow = DATA.bigLow || {};
+  const bigSmall = DATA.bigSmall || {};
+  const micro = DATA.micro || {};
+  const dom = DATA.dominant || {};
+  const domMid = DATA.dominantMid || {};
+  const it = DATA.impulseTrend || {};
+  const side4h = DATA.side4h || {};
+
+  // big regimes
+  const regs = big.regimes || [];
+  for (const r of regs) {
+    if (typeof r.upper === "number" && isFinite(r.upper)) all.push(r.upper);
+    if (typeof r.lower === "number" && isFinite(r.lower)) all.push(r.lower);
+  }
+
+  if (bigLow.ok && bigLow.tf !== bigTf) {
+    for (const r of (bigLow.regimes || [])) {
+      if (typeof r.upper === "number" && isFinite(r.upper)) all.push(r.upper);
+      if (typeof r.lower === "number" && isFinite(r.lower)) all.push(r.lower);
+    }
+  }
+
+  if (bigSmall.ok && bigSmall.tf !== bigTf && bigSmall.tf !== bigLow.tf) {
+    for (const r of (bigSmall.regimes || [])) {
+      if (typeof r.upper === "number" && isFinite(r.upper)) all.push(r.upper);
+      if (typeof r.lower === "number" && isFinite(r.lower)) all.push(r.lower);
+    }
+  }
+
+  // micro
+  [micro.upper, micro.lower].forEach(v => { if (typeof v === "number" && isFinite(v)) all.push(v); });
+
+  // dominant outer
+  if (dom.ok) all.push(dom.upper0, dom.upper1, dom.lower0, dom.lower1);
+  if (domMid.ok) all.push(domMid.upper0, domMid.upper1, domMid.lower0, domMid.lower1);
+
+  // impulse box + end-channel points
+  if (it.ok) {
+    if (typeof it.box?.upper === "number") all.push(it.box.upper);
+    if (typeof it.box?.lower === "number") all.push(it.box.lower);
+
+    // trend end approx: compute y at end
+    const t0 = it.trend?.startIndex;
+    const t1 = it.trend?.endIndex;
+    if (Number.isFinite(t0) && Number.isFinite(t1)) {
+      const xEnd = t1 - t0;
+      const upEnd = it.trend.m * xEnd + it.trend.b + it.trend.qUpper;
+      const dnEnd = it.trend.m * xEnd + it.trend.b + it.trend.qLower;
+      all.push(upEnd, dnEnd);
+    }
+  }
+
+  if (side4h.ok) {
+    for (const fr of side4h.frames || []) {
+      [fr.upper0, fr.upper1, fr.lower0, fr.lower1].forEach((v) => {
+        if (typeof v === "number" && isFinite(v)) all.push(v);
+      });
+    }
+  }
+
+  const mm = minMax(all);
+  const mid = (mm.mn + mm.mx) / 2;
+  const span = (mm.mx - mm.mn) * 1.15;
+
+  view.yMid = mid;
+  view.ySpan = Math.max(minPriceSpan(mid), span);
+}
+
+function draw() {
+  const t = DATA.plot.t;
+  const close = DATA.plot.close;
+
+  drawGrid();
+  drawSeriesClose(close);
+
+  const bigTf = DATA.placements?.bigTf || "60";
+  const big = DATA.tfs?.[bigTf] || {};
+  const bigLow = DATA.bigLow || {};
+  const bigSmall = DATA.bigSmall || {};
+  const micro = DATA.micro || {};
+  const avg = DATA.avg || {};
+  const box = DATA.box || {};
+  const dom = DATA.dominant || {};
+  const domMid = DATA.dominantMid || {};
+  const it = DATA.impulseTrend || {};
+  const side4h = DATA.side4h || {};
+
+  if (featureState.bigRegimes) {
+    const layerOn = (idx) => {
+      if (idx === 0) return !!featureState.bigLayer1;
+      if (idx === 1) return !!featureState.bigLayer2;
+      return !!featureState.bigLayer3;
+    };
+
+    const regs = big.regimes || [];
+    const dashStyles = [
+      [10,6],
+      [2,6],
+      [10,6,2,6],
+    ];
+    regs.forEach((r, idx) => {
+      if (!layerOn(idx)) return;
+      const dash = dashStyles[idx] || [10,6];
+      const upperKey = lineKey(bigTf, idx + 1, "upper");
+      const lowerKey = lineKey(bigTf, idx + 1, "lower");
+      if (!hiddenLineKeys.has(upperKey)) {
+        drawHLine(r.upper, "rgba(255,210,90,0.92)", `BIG ${bigTf} warstwa ${idx + 1} Góra ${fmt2(r.upper)}`, true, idx === 0 ? 2.2 : 1.8, dash);
+      }
+      if (!hiddenLineKeys.has(lowerKey)) {
+        drawHLine(r.lower, "rgba(255,210,90,0.92)", `BIG ${bigTf} warstwa ${idx + 1} Dół ${fmt2(r.lower)}`, true, idx === 0 ? 2.2 : 1.8, dash);
+      }
+    });
+
+    if (bigLow.ok && bigLow.tf !== bigTf) {
+      const lowRegs = bigLow.regimes || [];
+      lowRegs.forEach((r, idx) => {
+        if (!layerOn(idx)) return;
+        const upperKey = lineKey(bigLow.tf, idx + 1, "upper");
+        const lowerKey = lineKey(bigLow.tf, idx + 1, "lower");
+        if (!hiddenLineKeys.has(upperKey)) {
+          drawHLine(r.upper, "rgba(255,170,70,0.78)", `BIG ${bigLow.tf} warstwa ${idx + 1} Góra ${fmt2(r.upper)}`, true, idx === 0 ? 2.0 : 1.6, [4,6]);
+        }
+        if (!hiddenLineKeys.has(lowerKey)) {
+          drawHLine(r.lower, "rgba(255,170,70,0.78)", `BIG ${bigLow.tf} warstwa ${idx + 1} Dół ${fmt2(r.lower)}`, true, idx === 0 ? 2.0 : 1.6, [4,6]);
+        }
+      });
+    }
+
+    if (bigSmall.ok && bigSmall.tf !== bigTf && bigSmall.tf !== bigLow.tf) {
+      const smallRegs = bigSmall.regimes || [];
+      smallRegs.forEach((r, idx) => {
+        if (!layerOn(idx)) return;
+        const upperKey = lineKey(bigSmall.tf, idx + 1, "upper");
+        const lowerKey = lineKey(bigSmall.tf, idx + 1, "lower");
+        if (!hiddenLineKeys.has(upperKey)) {
+          drawHLine(r.upper, "rgba(255,135,50,0.72)", `BIG ${bigSmall.tf} warstwa ${idx + 1} Góra ${fmt2(r.upper)}`, true, idx === 0 ? 2.0 : 1.6, [2,5]);
+        }
+        if (!hiddenLineKeys.has(lowerKey)) {
+          drawHLine(r.lower, "rgba(255,135,50,0.72)", `BIG ${bigSmall.tf} warstwa ${idx + 1} Dół ${fmt2(r.lower)}`, true, idx === 0 ? 2.0 : 1.6, [2,5]);
+        }
+      });
+    }
+  }
+
+  if (featureState.microBox) {
+    drawBoxChannelStyled(
+      micro.upper, micro.lower,
+      "rgba(155,93,229,0.90)",
+      `MICRO box (${micro.tf}/${micro.hours}h) upper=${fmt2(micro.upper)} lower=${fmt2(micro.lower)}`,
+      [10,6],
+      2
+    );
+  }
+
+  if (featureState.avgBand) {
+    drawHLine(avg.upper, "rgba(6,214,160,0.85)", `Średnie pasmo U ${fmt2(avg.upper)}`, true, 1.2, [6,6]);
+    drawHLine(avg.lower, "rgba(6,214,160,0.85)", `Średnie pasmo L ${fmt2(avg.lower)}`, true, 1.2, [6,6]);
+  }
+
+  if (featureState.breakoutThr) {
+    if (box?.upThr) drawHLine(box.upThr, "rgba(255,120,120,0.75)", `Progi wybicia ↑ ${fmt2(box.upThr)}`, true, 1.0, [6,6]);
+    if (box?.dnThr) drawHLine(box.dnThr, "rgba(120,180,255,0.65)", `Progi wybicia ↓ ${fmt2(box.dnThr)}`, true, 1.0, [6,6]);
+  }
+
+  if (featureState.dominant && dom?.ok) drawTrendChannel(dom, "rgba(255,150,60,0.85)", "Dominant trend");
+  if (featureState.dominantMid && domMid?.ok) {
+    drawTrendChannel(domMid, "rgba(255,102,214,0.92)", `Dominant MID (${domMid.tf || "?"})`);
+  }
+  if (featureState.impulse) drawImpulseBoxAndTrend(it);
+  if (featureState.side4h) drawSide4hOverlayOnMain(side4h, t);
+  drawBotOrdersOverlay();
+  drawFillFlags();
+
+  drawAxesLabels(t);
+  drawStartMarker(close, t);
+  drawSuddenFlags(close, t);
+
+  const upd = new Date(DATA.updatedAt).toLocaleString();
+  metaEl.textContent =
+    `${DATA.symbol} (${DATA.category}) updated: ${upd} | lookback=${DATA.lookbackDays}d | plotTf=${DATA.plotTf}` +
+    ` | box=${box?.state || "—"} | dominant=${dom?.breakout?.state || "—"}` +
+    ` | bigLow(${bigLow?.tf || "?"})=${bigLow?.ok ? "OK" : "—"}` +
+    ` | bigSmall(${bigSmall?.tf || "?"})=${bigSmall?.ok ? "OK" : "—"}` +
+    ` | dominantMid(${domMid?.tf || "?"})=${domMid?.breakout?.state || "—"} | impulseTrend=${it?.ok ? it.direction : "—"}` +
+    ` | side4h=${side4h?.ok ? side4h.frames.length : 0}`;
+
+  const addP = (txt) => {
+    if (!legendEl) return;
+    const sp = document.createElement("span");
+    sp.className = "pill";
+    sp.textContent = txt;
+    legendEl.appendChild(sp);
+  };
+
+  if (legendEl) {
+    legendEl.innerHTML = "";
+
+    const p = DATA.placements || {};
+    addP(`BUY(big) ≈ ${fmt2(p.buySuggest)}`);
+    addP(`SELL(big) ≈ ${fmt2(p.sellSuggest)}`);
+    addP(`BUY(micro) ≈ ${fmt2(p.microBuySuggest)}`);
+    addP(`SELL(micro) ≈ ${fmt2(p.microSellSuggest)}`);
+
+    if (p.dominantBuySuggest || p.dominantSellSuggest) {
+      addP(`BUY(dominant) ≈ ${fmt2(p.dominantBuySuggest)}`);
+      addP(`SELL(dominant) ≈ ${fmt2(p.dominantSellSuggest)}`);
+    }
+
+    if (it?.ok) {
+      addP(`IMPULSE boxW≈${fmt2(it.box.widthPct)}% inside=${(it.box.insideFrac||0).toFixed(2)} score=${(it.score||0).toFixed(1)}`);
+    }
+  }
+
+  if (side4h?.ok) {
+    const overlapN = (side4h.frames || []).filter((f) => f.overlapsCurrent).length;
+    addP(`4H SIDE frames=${side4h.frames.length} overlap=${overlapN} narrow=${fmt2((side4h.narrowPct || 0) * 100)}%`);
+  }
+
+  if (domMid?.ok) {
+    addP(`DOM MID(${domMid.tf}) width≈${fmt2(domMid.widthPct)}% inlier=${(domMid.inlierRatio || 0).toFixed(2)}`);
+  }
+
+  if (bigLow?.ok && bigLow.tf !== bigTf) {
+    addP(`BIG LOW(${bigLow.tf}) regimes=${(bigLow.regimes || []).length}`);
+  }
+
+  if (bigSmall?.ok && bigSmall.tf !== bigTf && bigSmall.tf !== bigLow.tf) {
+    addP(`BIG SMALL(${bigSmall.tf}) regimes=${(bigSmall.regimes || []).length}`);
+  }
+
+  const cursor = getActiveCursorSnapshot();
+
+  renderPricePoints(close, t, { bigTf, big, bigLow, bigSmall, micro, avg, box, dom, domMid, side4h });
+  drawHover(close, t);
+}
+
+function renderSignalComponents(cursor, selectedIndicator, fallbackComponents, fallbackPlacements) {
+  if (!signalGridEl) return;
+  signalGridEl.innerHTML = "";
+
+  const cursorPriceLabel = Number.isFinite(Number(cursor?.price)) ? fmt2(Number(cursor?.price)) : "—";
+  const cursorMode = cursor?.locked ? "LOCK" : "HOVER";
+
+  const metricCols = [
+    [
+      ["Shock score", fmt2(Number(selectedIndicator?.shockScore))],
+      ["Shock dir", fmt2(Number(selectedIndicator?.shockDir))],
+      ["Bot signal", fmt2(Number(selectedIndicator?.botSignal))],
+    ],
+    [
+      ["EMA spread %", fmt2(Number(selectedIndicator?.emaSpreadPct))],
+      ["Momentum score", fmt2(Number(selectedIndicator?.momentumScore))],
+      ["Pressure score", fmt2(Number(selectedIndicator?.pressureScore))],
+    ],
+    [
+      ["Regime", selectedIndicator?.regime ?? "—"],
+      ["CCI", fmt2(Number(selectedIndicator?.cci))],
+      ["ADX14", fmt2(Number(selectedIndicator?.adx14))],
+    ],
+    [
+      ["ATR%", fmt2(Number(selectedIndicator?.atrPct))],
+      ["Tryb kursora", cursorMode],
+      ["Cena kursora", cursorPriceLabel],
+    ],
+  ];
+
+  const metricsColsHtml = metricCols
+    .map(
+      (col) =>
+        `<div class="metricCol">${col
+          .map(([label, val]) => `<div class="metricLine"><span class="k">${label}:</span><span class="v">${val}</span></div>`)
+          .join("")}</div>`
+    )
+    .join("");
+
+  const info = document.createElement("div");
+  info.className = "priceCard priceCardWide";
+  info.innerHTML = `<div class="metricsCols">${metricsColsHtml}</div>`;
+  signalGridEl.appendChild(info);
+}
+
+function drawDepthStrip_REMOVED() {
+
+  gd.clearRect(0, 0, W, H);
+  gd.fillStyle = "#02100a";
+  gd.fillRect(0, 0, W, H);
+
+  const times = DATA?.plot?.t;
+  if (!Array.isArray(times) || times.length < 2) return;
+  const n = view.i1 - view.i0;
+  if (n < 2) return;
+
+  const t0 = Number(times[view.i0]);
+  const t1 = Number(times[Math.min(view.i1 - 1, times.length - 1)]);
+  if (t1 <= t0) return;
+
+  const PAD_L = 6;
+  const PAD_R = 6;
+  const xOf = (ts) => PAD_L + ((Number(ts) - t0) / (t1 - t0)) * (W - PAD_L - PAD_R);
+  const yOf = (v, lo, hi) => {
+    if (hi <= lo) return H - 2;
+    return H - 2 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * (H - 4);
+  };
+
+  // Linia bazowa 0.5
+  const yHalf = yOf(0.5, 0, 1);
+  gd.strokeStyle = "rgba(255,180,60,0.25)";
+  gd.lineWidth = 1;
+  gd.setLineDash([5, 5]);
+  gd.beginPath();
+  gd.moveTo(PAD_L, yHalf);
+  gd.lineTo(W - PAD_R, yHalf);
+  gd.stroke();
+  gd.setLineDash([]);
+
+  // Filtruj rekordy w oknie widocznym (±2× zakres)
+  const range = t1 - t0;
+  const visible = rows.filter((r) => {
+    const ts = Number(r.tsMs);
+    return ts >= t0 - range * 0.05 && ts <= t1 + range * 0.05;
+  });
+
+  // impulseDepthScore — wypełniony obszar (pomarańczowy)
+  const depthPts = visible.filter((r) => Number.isFinite(Number(r.impulseDepthScore)));
+  if (depthPts.length >= 2) {
+    gd.beginPath();
+    gd.moveTo(xOf(depthPts[0].tsMs), H);
+    gd.lineTo(xOf(depthPts[0].tsMs), yOf(Number(depthPts[0].impulseDepthScore), 0, 1));
+    for (let i = 1; i < depthPts.length; i++) {
+      gd.lineTo(xOf(depthPts[i].tsMs), yOf(Number(depthPts[i].impulseDepthScore), 0, 1));
+    }
+    gd.lineTo(xOf(depthPts.at(-1).tsMs), H);
+    gd.closePath();
+    gd.fillStyle = "rgba(255,130,0,0.20)";
+    gd.fill();
+
+    gd.beginPath();
+    gd.moveTo(xOf(depthPts[0].tsMs), yOf(Number(depthPts[0].impulseDepthScore), 0, 1));
+    for (let i = 1; i < depthPts.length; i++) {
+      gd.lineTo(xOf(depthPts[i].tsMs), yOf(Number(depthPts[i].impulseDepthScore), 0, 1));
+    }
+    gd.strokeStyle = "rgba(255,160,40,0.90)";
+    gd.lineWidth = 1.5;
+    gd.stroke();
+  }
+
+  // volRatio — linia szara (znormalizowana: volRatio/4, cap=1)
+  const volPts = visible.filter((r) => Number.isFinite(Number(r.volRatio)));
+  if (volPts.length >= 2) {
+    gd.beginPath();
+    gd.moveTo(xOf(volPts[0].tsMs), yOf(Math.min(Number(volPts[0].volRatio) / 4, 1), 0, 1));
+    for (let i = 1; i < volPts.length; i++) {
+      gd.lineTo(xOf(volPts[i].tsMs), yOf(Math.min(Number(volPts[i].volRatio) / 4, 1), 0, 1));
+    }
+    gd.strokeStyle = "rgba(190,190,190,0.45)";
+    gd.lineWidth = 1;
+    gd.stroke();
+  }
+
+  // Etykieta
+  gd.fillStyle = "rgba(255,160,40,0.80)";
+  gd.font = "10px system-ui, Arial";
+  gd.textAlign = "left";
+  gd.fillText("\u25A0 impulseDepth", PAD_L + 4, 11);
+  gd.fillStyle = "rgba(190,190,190,0.60)";
+  gd.fillText("\u2014 volRatio/4", PAD_L + 100, 11);
+}
+
+function drawStartMarker(close, times) {
+  if (!Array.isArray(close) || !close.length) return;
+  const idx = clamp(view.i0, 0, close.length - 1);
+  const n = view.i1 - view.i0;
+  if (n < 2) return;
+
+  const x = xOf(0, n);
+  const price = close[idx];
+  if (!(typeof price === "number" && isFinite(price))) return;
+  const y = yOf(price);
+
+  g.save();
+  g.strokeStyle = "rgba(255,196,84,0.7)";
+  g.lineWidth = 1.4;
+  g.setLineDash([7, 6]);
+  g.beginPath();
+  g.moveTo(x, PAD_T);
+  g.lineTo(x, cv.height - PAD_B);
+  g.stroke();
+  g.setLineDash([]);
+
+  g.fillStyle = "rgba(255,196,84,0.95)";
+  g.beginPath();
+  g.arc(x, y, 4.2, 0, Math.PI * 2);
+  g.fill();
+
+  const dt = new Date(times[idx]);
+  const lbl = `START ${String(dt.getDate()).padStart(2, "0")}.${String(dt.getMonth() + 1).padStart(2, "0")} ${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+  g.fillStyle = "rgba(255,196,84,0.95)";
+  g.font = "12px system-ui, Arial";
+  g.textAlign = "left";
+  g.fillText(lbl, Math.min(cv.width - PAD_R - 200, x + 8), PAD_T + 14);
+  g.restore();
+}
+
+function drawHover(close, times) {
+  const n = view.i1 - view.i0;
+  if (n < 2) return;
+
+  let idx = activeCursorIndex();
+  let x;
+  let price;
+  let ts;
+
+  if (selection.locked && Number.isFinite(selection.idx)) {
+    idx = clamp(selection.idx, view.i0, view.i1 - 1);
+    x = xOf(idx - view.i0, n);
+    price = close[idx];
+    ts = times[idx];
+  } else if (Number.isFinite(hover.idxFloat)) {
+    const idxF = clamp(hover.idxFloat, view.i0, view.i1 - 1);
+    const iL = clamp(Math.floor(idxF), view.i0, view.i1 - 1);
+    const iR = clamp(iL + 1, view.i0, view.i1 - 1);
+    const frac = clamp(idxF - iL, 0, 1);
+
+    x = xOf(idxF - view.i0, n);
+    const pL = close[iL];
+    const pR = close[iR];
+    price = pL + (pR - pL) * frac;
+    ts = times[iL] + (times[iR] - times[iL]) * frac;
+    idx = iL;
+  } else {
+    idx = clamp(idx, view.i0, view.i1 - 1);
+    x = xOf(idx - view.i0, n);
+    price = close[idx];
+    ts = times[idx];
+  }
+
+  if (!(typeof price === "number" && isFinite(price))) return;
+  const y = yOf(price);
+
+  g.save();
+  g.strokeStyle = "rgba(255,255,255,0.25)";
+  g.setLineDash([4,5]);
+  g.beginPath();
+  g.moveTo(x, PAD_T);
+  g.lineTo(x, cv.height - PAD_B);
+  g.stroke();
+  g.setLineDash([]);
+
+  g.fillStyle = selection.locked ? "rgba(255,157,88,0.98)" : "rgba(82,195,255,0.95)";
+  g.beginPath();
+  g.arc(x, y, 4.6, 0, Math.PI * 2);
+  g.fill();
+
+  const dt = new Date(ts);
+  const prefix = selection.locked ? "LOCK " : "";
+  const lbl = `${prefix}${fmt2(price)} • ${String(dt.getDate()).padStart(2,"0")}.${String(dt.getMonth()+1).padStart(2,"0")} ${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`;
+  const fontPx = 12 * PRICE_LABEL_SCALE;
+  g.font = `${fontPx}px system-ui, Arial`;
+  const textW = g.measureText(lbl).width;
+  const padX = 6 * PRICE_LABEL_SCALE;
+  const padY = 7 * PRICE_LABEL_SCALE;
+  const labelW = textW + padX * 2;
+  const labelH = fontPx + padY * 1.6;
+  const tx = Math.min(cv.width - PAD_R - labelW, x + 10);
+  const ty = Math.max(PAD_T + 18 * PRICE_LABEL_SCALE, y - 12 * PRICE_LABEL_SCALE);
+
+  g.fillStyle = "rgba(9,16,24,0.22)";
+  g.fillRect(tx - padX, ty - fontPx, labelW, labelH);
+  g.strokeStyle = "rgba(170, 220, 255, 0.35)";
+  g.lineWidth = 1;
+  g.strokeRect(tx - padX, ty - fontPx, labelW, labelH);
+  g.fillStyle = "rgba(220,242,255,0.96)";
+  g.font = `${fontPx}px system-ui, Arial`;
+  g.textAlign = "left";
+  g.fillText(lbl, tx, ty);
+  g.restore();
+
+  // fill flag tooltip — draw on top of everything when mouse is near a flag
+  if (hover.active) {
+    drawFillFlagTooltip(hover.x, hover.y);
+  }
+}
+
+async function loadAndDraw() {
+  try {
+    const qsSymbol = getQuerySymbol();
+    if (!currentSymbol) {
+      if (qsSymbol) currentSymbol = qsSymbol;
+      else {
+        const cfgRes = await fetch("/api/config?_=" + Date.now());
+        const cfg = await cfgRes.json();
+        currentSymbol = cfg?.defaultSymbol || null;
+      }
+    }
+
+    if (!currentSymbol) {
+      location.href = "/channels_setup.html";
+      return;
+    }
+
+    updatePageTitle(currentSymbol);
+
+    const baseSteps = [
+      { text: `Wybrany symbol: ${currentSymbol}`, done: true },
+      { text: "Sprawdzanie statusu przetwarzania", done: false },
+      { text: "Pobieranie danych wykresu", done: false },
+      { text: "Render kanałów i warstw", done: false },
+    ];
+    setLoading(true, `Wczytywanie ${currentSymbol}…`, baseSteps, 0.18);
+
+    const reqQS = `symbol=${encodeURIComponent(currentSymbol)}&tf=${encodeURIComponent(REQUIRED_PLOT_TF)}&interval=${encodeURIComponent(REQUIRED_PLOT_TF)}&_=${Date.now()}`;
+    const stRes = await fetch(`/api/job-status?${reqQS}`);
+    const st = await stRes.json();
+    baseSteps[1].done = true;
+
+    let res = await fetch(`/data.json?${reqQS}`);
+    if (!res.ok) {
+      await fetch(`/api/prepare?${reqQS}`, { method: "POST" });
+
+      for (let i = 0; i < 80; i++) {
+        const jobRes = await fetch(`/api/job-status?${reqQS}`);
+        const job = await jobRes.json();
+        const phase = job?.state?.phase || "queued";
+        const phaseText = phase === "fetching"
+          ? "Pobieranie świec i obliczanie kanałów"
+          : phase === "capturing"
+          ? "Tworzenie zrzutu JPG"
+          : phase === "done"
+          ? "Dane gotowe"
+          : phase === "error"
+          ? "Wystąpił błąd przetwarzania"
+          : "Oczekiwanie na przetwarzanie";
+
+        setLoading(true, `Wczytywanie ${currentSymbol}…`, [
+          { text: `Wybrany symbol: ${currentSymbol}`, done: true },
+          { text: "Sprawdzanie statusu przetwarzania", done: true },
+          { text: phaseText, done: phase === "done" },
+          { text: "Render kanałów i warstw", done: false },
+        ], 0.25 + Math.min(0.65, i * 0.01));
+
+        if (phase === "error") break;
+
+        res = await fetch(`/data.json?${reqQS}`);
+        if (res.ok) break;
+        await sleep(1200);
+      }
+    }
+
+    if (!res.ok) {
+      setLoading(true, `Brak danych dla ${currentSymbol}`, [
+        { text: "Nie udało się pobrać danych", done: false },
+        { text: "Spróbuj ponownie za chwilę", done: false },
+      ], 1);
+      return;
+    }
+
+    baseSteps[2].done = true;
+    setLoading(true, `Wczytywanie ${currentSymbol}…`, baseSteps, 0.84);
+
+    const prevVisibleBars = DATA?.plot?.close?.length ? (view.i1 - view.i0) : null;
+    DATA = await res.json();
+    if (DATA && DATA.plotTf && String(DATA.plotTf) !== REQUIRED_PLOT_TF) {
+      DATA.plotTf = `${REQUIRED_PLOT_TF}m`;
+    }
+
+    if (prevVisibleBars && DATA?.plot?.close?.length) {
+      const total = DATA.plot.close.length;
+      const keep = clamp(prevVisibleBars, 40, total);
+      view.i1 = total;
+      view.i0 = Math.max(0, total - keep);
+      fitYToVisibleClose();
+    } else {
+      rebuildViewDefault();
+    }
+
+    syncTimelineFromView();
+    await pullIndicatorHistory();
+    draw();
+
+    baseSteps[3].done = true;
+    setLoading(true, `Wczytywanie ${currentSymbol}…`, baseSteps, 1);
+    await sleep(250);
+
+    const q = `?symbol=${encodeURIComponent(currentSymbol)}`;
+    const u = new URL(location.href);
+    if ((u.searchParams.get("symbol") || "") !== currentSymbol) {
+      u.searchParams.set("symbol", currentSymbol);
+      history.replaceState(null, "", u.pathname + u.search);
+    }
+    link4hEl.href = `/channels_4h_demo.html${q}`;
+
+    if (!historyFromEl.value || !historyToEl.value) {
+      const endMs = Date.now();
+      const startMs = endMs - 7 * 24 * 60 * 60 * 1000;
+      historyFromEl.value = toLocalDatetimeInputValue(startMs);
+      historyToEl.value = toLocalDatetimeInputValue(endMs);
+    }
+  } catch (e) {
+    console.error("loadAndDraw error:", e);
+    setHistoryHint(`Błąd renderu: ${e?.message || e}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+cv.addEventListener("wheel", (e) => {
+  if (!DATA) return;
+  e.preventDefault();
+
+  const zoom = e.deltaY < 0 ? 0.88 : 1.14;
+  const pt = mouseToCanvas(e);
+  zoomTimelineByFactor(zoom, pt.x);
+  draw();
+}, { passive: false });
+
+cv.addEventListener("mousedown", (e) => {
+  if (!DATA) return;
+  if (e.button !== 0) return;
+  const pt = mouseToCanvas(e);
+  view.dragging = true;
+  view.dragX = pt.x;
+  view.dragY = pt.y;
+  view.drag_i0 = view.i0;
+  view.drag_i1 = view.i1;
+  view.drag_yMid = view.yMid;
+  view.drag_ySpan = view.ySpan;
+});
+
+window.addEventListener("mouseup", () => { view.dragging = false; });
+
+window.addEventListener("mousemove", (e) => {
+  if (!view.dragging || !DATA) return;
+  const pt = mouseToCanvas(e);
+  const dx = pt.x - view.dragX;
+  const dy = pt.y - view.dragY;
+
+  const n = view.drag_i1 - view.drag_i0;
+  const pxPerBar = (cv.width - PAD_L - PAD_R) / n;
+  const barsShift = Math.round(-dx / Math.max(1, pxPerBar));
+
+  let i0 = view.drag_i0 + barsShift;
+  let i1 = view.drag_i1 + barsShift;
+
+  const maxN = DATA.plot.t.length;
+  if (i0 < 0) { i1 -= i0; i0 = 0; }
+  if (i1 > maxN) { const d = i1 - maxN; i0 -= d; i1 -= d; }
+
+  i0 = clamp(i0, 0, maxN-2);
+  i1 = clamp(i1, i0+2, maxN);
+
+  view.i0 = i0;
+  view.i1 = i1;
+
+  const chartH = Math.max(1, cv.height - PAD_T - PAD_B);
+  const pricePerPixel = (Number.isFinite(view.drag_ySpan) ? view.drag_ySpan : view.ySpan) / chartH;
+  view.yMid = view.drag_yMid + dy * pricePerPixel;
+
+  syncTimelineFromView();
+  draw();
+});
+
+cv.addEventListener("mousemove", (e) => {
+  if (!DATA) return;
+  if (selection.locked) return;
+  const pt = mouseToCanvas(e);
+  const n = view.i1 - view.i0;
+  const tt = clamp((pt.x - PAD_L) / (cv.width - PAD_L - PAD_R), 0, 1);
+  const idxF = view.i0 + tt * Math.max(1, n - 1);
+  const idx = Math.round(idxF);
+
+  hover.active = true;
+  hover.idx = clamp(idx, view.i0, view.i1 - 1);
+  hover.idxFloat = clamp(idxF, view.i0, view.i1 - 1);
+  hover.x = pt.x;
+  hover.y = pt.y;
+
+  if (!view.dragging) draw();
+});
+
+cv.addEventListener("click", (e) => {
+  if (!DATA) return;
+  const pt = mouseToCanvas(e);
+  const n = view.i1 - view.i0;
+  const tt = clamp((pt.x - PAD_L) / (cv.width - PAD_L - PAD_R), 0, 1);
+  const idx = clamp(view.i0 + Math.round(tt * Math.max(1, n - 1)), view.i0, view.i1 - 1);
+
+  if (selection.locked && selection.idx === idx) {
+    selection.locked = false;
+    selection.idx = null;
+  } else {
+    selection.locked = true;
+    selection.idx = idx;
+  }
+  draw();
+});
+
+cv.addEventListener("mouseleave", () => {
+  hover.active = false;
+  hover.idx = null;
+  hover.idxFloat = null;
+  if (DATA) draw();
+});
+
+// ✅ Save PNG
+document.getElementById("btnSave").addEventListener("click", () => {
+  if (!DATA) return;
+  const a = document.createElement("a");
+  const ts = new Date(DATA.updatedAt).toISOString().replace(/[:.]/g, "-");
+  a.download = `channels_${DATA.symbol}_${ts}.png`;
+  a.href = cv.toDataURL("image/png");
+  a.click();
+});
+
+document.getElementById("btnReload").addEventListener("click", loadAndDraw);
+document.getElementById("btnReset").addEventListener("click", () => { rebuildViewDefault(); syncTimelineFromView(); draw(); });
+document.getElementById("btnAddWatch").addEventListener("click", () => {
+  const base = "/channels_setup.html?mode=add";
+  window.open(base, "_blank", "noopener");
+});
+btnZoomOutEl.addEventListener("click", () => { zoomTimelineByFactor(1.14); draw(); });
+btnZoomInEl.addEventListener("click", () => { zoomTimelineByFactor(0.88); draw(); });
+btnResetYEl?.addEventListener("click", () => {
+  fitYToVisibleClose();
+  draw();
+});
+timelineStartEl.addEventListener("input", () => applyTimelineRange("start"));
+timelineEndEl.addEventListener("input", () => applyTimelineRange("end"));
+toggleScreensEl.addEventListener("change", () => {
+  updateScreensToggle(toggleScreensEl.checked);
+});
+
+window.addEventListener("wheel", (e) => {
+  if (e.ctrlKey) e.preventDefault();
+}, { passive: false });
+
+tabChartEl.addEventListener("click", () => setTab("chart"));
+tabPointsEl.addEventListener("click", () => setTab("points"));
+
+document.getElementById("btnTogglePoints").addEventListener("click", () => {
+  const hidden = panelPointsEl.classList.toggle("panelHidden");
+  document.getElementById("btnTogglePoints").textContent = hidden ? "Punkty cenowe \u25be" : "Punkty cenowe \u25b4";
+});
+
+btnRangeCsvEl.addEventListener("click", async () => {
+  try {
+    const range = await fetchCsvHistoryRange();
+    if (!range) {
+      setHistoryHint("Nie udało się odczytać CSV historii (logs/market_history_5m.csv).");
+      return;
+    }
+
+    historyFromEl.value = toLocalDatetimeInputValue(range.minTs);
+    historyToEl.value = toLocalDatetimeInputValue(range.maxTs);
+    setHistoryHint("Zakres ustawiony z CSV historii 5m. Kliknij: Wczytaj świece z zakresu.");
+  } catch (e) {
+    setHistoryHint(`Błąd odczytu CSV: ${e?.message || e}`);
+  }
+});
+
+btnLoadPeriodEl.addEventListener("click", async () => {
+  btnLoadPeriodEl.disabled = true;
+  try {
+    await loadPeriodCandlesFromForm();
+  } catch (e) {
+    setHistoryHint(`Błąd pobierania świec: ${e?.message || e}`);
+  } finally {
+    btnLoadPeriodEl.disabled = false;
+  }
+});
+
+btnTradeHistoryEl?.addEventListener("click", () => {
+  window.open("/trade_history.html", "_blank", "noopener");
+});
+
+document.getElementById("btnReloadConfig")?.addEventListener("click", async () => {
+  const btn = document.getElementById("btnReloadConfig");
+  btn.disabled = true;
+  btn.textContent = "⏳ Reload Config";
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd: "reload_config" }),
+    });
+    const data = await res.json();
+    if (data?.ok) {
+      btn.textContent = "✅ Przeladowano";
+      setTimeout(() => { btn.textContent = "🔄 Reload Config"; btn.disabled = false; }, 3000);
+    } else {
+      btn.textContent = "❌ Błąd";
+      setTimeout(() => { btn.textContent = "🔄 Reload Config"; btn.disabled = false; }, 3000);
+    }
+  } catch {
+    btn.textContent = "❌ Błąd";
+    setTimeout(() => { btn.textContent = "🔄 Reload Config"; btn.disabled = false; }, 3000);
+  }
+});
+
+btnClearOrdersEl?.addEventListener("click", async () => {
+  const ok = window.confirm("Na pewno usunąć wszystkie zlecenia? (komenda c)");
+  if (!ok) return;
+
+  btnClearOrdersEl.disabled = true;
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd: "c" }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `HTTP ${res.status}`);
+    }
+    setHistoryHint("Wysłano komendę c: usuwanie zleceń…");
+  } catch (e) {
+    setHistoryHint(`Błąd komendy c: ${e?.message || e}`);
+  } finally {
+    btnClearOrdersEl.disabled = false;
+  }
+});
+
+btnRegridEl?.addEventListener("click", async () => {
+  const ok = window.confirm("Na pewno zrobić pełny regrid? (komenda r)");
+  if (!ok) return;
+
+  btnRegridEl.disabled = true;
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd: "r" }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `HTTP ${res.status}`);
+    }
+    setHistoryHint("Wysłano komendę r: pełny regrid…");
+  } catch (e) {
+    setHistoryHint(`Błąd komendy r: ${e?.message || e}`);
+  } finally {
+    btnRegridEl.disabled = false;
+  }
+});
+
+btnSetOrderQuoteValueEl?.addEventListener("click", async () => {
+  const value = Number(inpOrderQuoteValueEl?.value || 0);
+  if (!Number.isFinite(value) || value <= 0) {
+    setHistoryHint("Błąd: ORDER_QUOTE_VALUE musi być > 0.");
+    return;
+  }
+
+  btnSetOrderQuoteValueEl.disabled = true;
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd: "g", orderQuoteValue: value }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `HTTP ${res.status}`);
+    }
+    setHistoryHint(`Ustawiono ORDER_QUOTE_VALUE=${fmt2(value)} (komenda g).`);
+  } catch (e) {
+    setHistoryHint(`Błąd komendy g (ORDER_QUOTE_VALUE): ${e?.message || e}`);
+  } finally {
+    btnSetOrderQuoteValueEl.disabled = false;
+  }
+});
+
+btnSetMicroSpacingPctEl?.addEventListener("click", async () => {
+  const value = Number(inpMicroSpacingPctEl?.value || 0);
+  if (!Number.isFinite(value) || value <= 0) {
+    setHistoryHint("Błąd: MICRO_SPACING_PCT musi być > 0.");
+    return;
+  }
+
+  btnSetMicroSpacingPctEl.disabled = true;
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd: "g", microSpacingPct: value }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `HTTP ${res.status}`);
+    }
+    setHistoryHint(`Ustawiono MICRO_SPACING_PCT=${fmt2(value)} (komenda g).`);
+  } catch (e) {
+    setHistoryHint(`Błąd komendy g (MICRO_SPACING_PCT): ${e?.message || e}`);
+  } finally {
+    btnSetMicroSpacingPctEl.disabled = false;
+  }
+});
+
+btnManualPlaceOrderEl?.addEventListener("click", async () => {
+  const side = String(manualOrderSideEl?.value || "Buy");
+  const price = Number(manualOrderPriceEl?.value || 0);
+  const value = Number(manualOrderValueEl?.value || 0);
+
+  if (!(side === "Buy" || side === "Sell")) {
+    setHistoryHint("Błąd: side musi być Buy lub Sell.");
+    return;
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    setHistoryHint("Błąd: nieprawidłowa cena (Price).");
+    return;
+  }
+  if (!Number.isFinite(value) || value <= 0) {
+    setHistoryHint("Błąd: nieprawidłowa wartość (Value).");
+    return;
+  }
+
+  btnManualPlaceOrderEl.disabled = true;
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cmd: "place_order",
+        side,
+        price,
+        value,
+      }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `HTTP ${res.status}`);
+    }
+
+    setHistoryHint(`Wysłano ręczne zlecenie ${side} @ ${fmt2(price)} value=${fmt2(value)}.`);
+    pullBotUiSnapshot().catch(() => {});
+  } catch (e) {
+    setHistoryHint(`Błąd place order: ${e?.message || e}`);
+  } finally {
+    btnManualPlaceOrderEl.disabled = false;
+  }
+});
+
+toggleLogsHeartbeatEl?.addEventListener("change", () => {
+  logsFilterState.showHeartbeat = !!toggleLogsHeartbeatEl.checked;
+  renderBotLogs(botUiStore.rawLogs || []);
+});
+
+toggleLogsStateEl?.addEventListener("change", () => {
+  logsFilterState.showState = !!toggleLogsStateEl.checked;
+  renderBotLogs(botUiStore.rawLogs || []);
+});
+
+toggleLogsFillsEl?.addEventListener("change", () => {
+  logsFilterState.showFills = !!toggleLogsFillsEl.checked;
+  renderBotLogs(botUiStore.rawLogs || []);
+});
+
+toggleLogsCounterEl?.addEventListener("change", () => {
+  logsFilterState.showCounter = !!toggleLogsCounterEl.checked;
+  renderBotLogs(botUiStore.rawLogs || []);
+});
+
+toggleLogsWarnErrEl?.addEventListener("change", () => {
+  logsFilterState.showWarnErr = !!toggleLogsWarnErrEl.checked;
+  renderBotLogs(botUiStore.rawLogs || []);
+});
+
+toggleLogsOtherEl?.addEventListener("change", () => {
+  logsFilterState.showOther = !!toggleLogsOtherEl.checked;
+  renderBotLogs(botUiStore.rawLogs || []);
+});
+
+document.getElementById("btnCleanSession")?.addEventListener("click", async () => {
+  const ok1 = window.confirm(
+    "Wyczyścić sesję?\n\nZresetuje liczniki fills i flagi na wykresie.\nBota NIE restartuje — działa dalej."
+  );
+  if (!ok1) return;
+  const ok2 = window.confirm(
+    "Na pewno?\n\nLiczniki fills wrócą do zera. Operacji nie można cofnąć."
+  );
+  if (!ok2) return;
+  const btn = document.getElementById("btnCleanSession");
+  btn.disabled = true;
+  btn.textContent = "⏳ Czyszczenie…";
+  try {
+    const res = await fetch("/api/bot-command", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd: "clean_session" }),
+    });
+    const p = await res.json().catch(() => ({}));
+    if (!res.ok || p?.ok === false) throw new Error(p?.error || `HTTP ${res.status}`);
+    btn.textContent = "✅ Wyczyszczono";
+    setTimeout(() => { btn.textContent = "🧹 Clean Session"; btn.disabled = false; }, 3000);
+    setTimeout(pullBotUiSnapshot, 600);
+  } catch (e) {
+    btn.textContent = "❌ Błąd";
+    setTimeout(() => { btn.textContent = "🧹 Clean Session"; btn.disabled = false; }, 3000);
+    alert("Błąd clean session: " + (e?.message || e));
+  }
+});
+
+signalGridEl?.addEventListener("click", async (ev) => {
+  const btn = ev.target?.closest?.("#btnCopyReadingsInline");
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    const len = await copyReadingsToClipboard();
+    setHistoryHint(`Skopiowano odczyty do schowka (${len} znaków). Możesz wkleić bezpośrednio do LLM.`);
+  } catch (e) {
+    setHistoryHint(`Błąd kopiowania odczytów: ${e?.message || e}`);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+signalGridEl?.addEventListener("change", (ev) => {
+  const t = ev.target;
+  if (!(t instanceof HTMLInputElement)) return;
+  if (t.id === "toggleSuddenFlags") {
+    suddenFlagsEnabled = !!t.checked;
+    draw();
+    return;
+  }
+
+  const featureKey = t.getAttribute("data-feature-key");
+  if (!featureKey) return;
+  if (!(featureKey in featureState)) return;
+  featureState[featureKey] = !!t.checked;
+  draw();
+});
+
+priceGridEl?.addEventListener("change", (ev) => {
+  const t = ev.target;
+  if (!(t instanceof HTMLInputElement)) return;
+  const featureKey = t.getAttribute("data-feature-key");
+  if (!featureKey) return;
+  if (!(featureKey in featureState)) return;
+  featureState[featureKey] = !!t.checked;
+  if (featureKey === "bigRegimes") {
+    featureState.bigLayer1 = !!t.checked;
+    featureState.bigLayer2 = !!t.checked;
+    featureState.bigLayer3 = !!t.checked;
+  }
+  draw();
+});
+
+buildFeatureToggles();
+setTab("chart");
+syncScreensToggleFromConfig().then(() => loadAndDraw());
+pullBotUiSnapshot().catch(() => {});
+pullBotLogs().catch(() => {});
+
+if (cornerBrandEl) {
+  const img = cornerBrandEl.querySelector("img");
+  if (img) {
+    img.onerror = () => {
+      if (img.dataset.retry === "1") return;
+      img.dataset.retry = "1";
+      img.src = `/files/web/kanalarz.png?v=${Date.now()}`;
+    };
+    img.src = `/files/kanalarz.png?v=${Date.now()}`;
+  }
+}
+
+setInterval(() => {
+  loadAndDraw().catch((e) => console.error("auto refresh error:", e?.message || e));
+}, AUTO_REFRESH_MS);
+
+setInterval(() => {
+  pullIndicatorHistory().then(() => {
+    if (DATA) draw();
+  }).catch(() => {});
+}, INDICATOR_POLL_MS);
+
+if (toggleOrderLayerEl) {
+  toggleOrderLayerEl.checked = !!featureState.ordersLayer;
+  toggleOrderLayerEl.addEventListener("change", () => {
+    featureState.ordersLayer = !!toggleOrderLayerEl.checked;
+    if (DATA) draw();
+  });
+}
+
+setInterval(() => {
+  pullBotUiSnapshot().catch(() => {});
+}, BOT_UI_STATE_POLL_MS);
+
+setInterval(() => {
+  pullBotLogs().catch(() => {});
+}, BOT_UI_LOGS_POLL_MS);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    pullBotUiSnapshot().catch(() => {});
+    pullBotLogs().catch(() => {});
+  }
+});
+
+window.addEventListener("focus", () => {
+  pullBotUiSnapshot().catch(() => {});
+  pullBotLogs().catch(() => {});
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1348 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>⚡ Analizator Throttlingu</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, Arial; background: #000; color: #e8eef7; overflow-x: auto; }
+    .wrap { padding: 8px 12px 24px; min-width: 900px; }
+
+    /* ── TOOLBAR ── */
+    .toolbar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 6px 0 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.09);
+      margin-bottom: 8px;
+    }
+    .toolbar button, .toolbar a {
+      padding: 6px 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.14);
+      background: #1a2e45; color: #e8eef7; cursor: pointer; font-size: 13px; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .toolbar button:hover, .toolbar a:hover { filter: brightness(1.15); }
+    .toolbar .backBtn {
+      background: linear-gradient(180deg, #243f61 0%, #192d47 100%);
+      border-color: rgba(100,180,255,0.45);
+      font-weight: 700;
+    }
+    .toolbar .title { font-size: 15px; font-weight: 700; color: #8bceff; margin-left: 4px; }
+    .toolbar .meta  { font-size: 12px; opacity: .75; }
+    .toolbar .spacer { flex: 1; }
+    .toolbar .liveTag {
+      padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700;
+      background: rgba(50,200,80,0.15); border: 1px solid rgba(50,200,80,0.4); color: #6ef09a;
+    }
+    .toolbar .liveTag.stale { background: rgba(255,100,0,0.12); border-color: rgba(255,100,0,0.35); color: #ffa060; }
+
+    /* ── CHART CONTAINER ── */
+    .chartWrap {
+      background: #060e18; border: 1px solid rgba(255,255,255,0.09); border-radius: 12px;
+      overflow: hidden; position: relative;
+    }
+    canvas { display: block; width: 100%; background: #000; }
+    #cvMain  { height: 380px; }
+    #cvSev   { height:  90px; border-top: 1px solid rgba(255,255,255,0.06); }
+    #cvComp  { height:  72px; border-top: 1px solid rgba(255,255,255,0.06); }
+    #cvSig   { height:  48px; border-top: 1px solid rgba(255,255,255,0.06); }
+    #cvDefer { height:  36px; border-top: 1px solid rgba(255,255,255,0.06); }
+
+    /* strip labels on the left */
+    .stripLabel {
+      position: absolute; left: 0; font-size: 10px; opacity: .6;
+      writing-mode: horizontal-tb; white-space: nowrap;
+      pointer-events: none; padding: 2px 4px;
+      background: rgba(0,0,0,0.5); border-radius: 0 0 4px 0;
+    }
+
+    /* ── TIMELINE ── */
+    .timelineWrap {
+      padding: 5px 10px 4px;
+      background: rgba(6,10,18,0.92); border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .timelineHead {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11.5px; opacity: .85; margin-bottom: 3px;
+    }
+    .timelineSliders { position: relative; height: 16px; }
+    .timelineSliders input[type="range"] {
+      position: absolute; left: 0; top: 0; width: 100%; margin: 0;
+      pointer-events: none; background: transparent;
+      -webkit-appearance: none; appearance: none; height: 16px;
+    }
+    .timelineSliders input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px; border-radius: 99px; background: rgba(255,255,255,0.14);
+    }
+    .timelineSliders input[type="range"]::-moz-range-track {
+      height: 4px; border-radius: 99px; background: rgba(255,255,255,0.14);
+    }
+    .timelineSliders input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%; margin-top: -5px;
+      border: 1px solid rgba(255,255,255,0.7); background: #5aa8ff;
+      pointer-events: auto; cursor: ew-resize;
+    }
+    .timelineSliders input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.7); background: #5aa8ff;
+      pointer-events: auto; cursor: ew-resize;
+    }
+
+    /* ── CURSOR TOOLTIP ── */
+    #cursorTooltip {
+      position: fixed; pointer-events: none; z-index: 100;
+      background: rgba(8,16,28,0.96); border: 1px solid rgba(100,170,255,0.35);
+      border-radius: 10px; padding: 8px 12px; font-size: 12px;
+      min-width: 200px; max-width: 320px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      display: none;
+    }
+    #cursorTooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; margin: 2px 0; }
+    #cursorTooltip .tt-k  { opacity: .75; }
+    #cursorTooltip .tt-v  { font-weight: 700; color: #cfe9ff; }
+    #cursorTooltip .tt-v.up   { color: #ffb060; }
+    #cursorTooltip .tt-v.dn   { color: #60c4ff; }
+    #cursorTooltip .tt-v.hot  { color: #ff5555; }
+    #cursorTooltip .tt-sep { border-top: 1px solid rgba(255,255,255,0.1); margin: 5px 0; }
+
+    /* ── LEGEND BAR ── */
+    .legendBar {
+      display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 10px 4px;
+      font-size: 11px; opacity: .82;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(4,8,14,0.9);
+    }
+    .legendDot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+
+    /* ── CURRENT STATE PANEL ── */
+    .statePanel {
+      margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+      background: #040e1a; border: 1px solid rgba(255,255,255,0.09);
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 16px;
+    }
+    .stateItem { display: grid; gap: 2px; }
+    .stateItem .sk { font-size: 11px; opacity: .65; }
+    .stateItem .sv { font-size: 18px; font-weight: 700; }
+    .stateItem .sv.hot { color: #ff5555; }
+    .stateItem .sv.warm { color: #ffaa44; }
+    .stateItem .sv.cool { color: #60c4ff; }
+    .stateItem .sv.calm { color: #6ef09a; opacity: .7; }
+
+    /* ── EVENT LOG ── */
+    .evtPanel {
+      margin-top: 8px; padding: 8px 10px; border-radius: 10px;
+      background: #04120a; border: 1px solid rgba(50,200,80,0.12);
+      max-height: 140px; overflow-y: auto;
+    }
+    .evtPanel .evtHead { font-size: 11px; opacity: .6; margin-bottom: 5px; font-weight: 700; letter-spacing: .5px; }
+    .evtRow { font-size: 11.5px; display: flex; gap: 10px; padding: 2px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .evtRow .et { min-width: 50px; opacity: .6; }
+    .evtRow .etp { font-weight: 700; min-width: 110px; }
+    .evtRow .etp.THROTTLE_APPLIED       { color: #ffaa44; }
+    .evtRow .etp.THROTTLE_REPLACE_SKIPPED { color: #888; }
+    .evtRow .etp.THROTTLE_RESTORED      { color: #6ef09a; }
+    .evtRow .etp.THROTTLE_CONFIRMED_FILLED { color: #60c4ff; }
+    .evtRow .etp.THROTTLE_REACTIVATED   { color: #c4a0ff; }
+    .evtRow .ed { opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── MISC ── */
+    .row { display:flex; gap: 8px; align-items: center; margin: 6px 0; }
+    .pill { padding: 5px 9px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.14);
+            background: #0b1a2e; font-size: 12px; }
+    .pill select, .pill input { background: transparent; border: 0; color: #e8eef7; font-size: 12px; }
+    .checkLabel { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; opacity: .85; cursor: pointer; }
+    .checkLabel input { margin: 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <a id="backBtn" class="backBtn" href="/">← Powrót do UI</a>
+    <span class="title">⚡ Analizator Throttlingu</span>
+    <span class="meta" id="metaSymbol">BTC/USDT</span>
+    <span class="liveTag" id="liveTag">LIVE</span>
+    <div class="spacer"></div>
+    <div class="row" style="margin:0; gap:6px;">
+      <button id="btnReload" title="Odśwież dane">⟳ Odśwież</button>
+      <button id="btnResetZoom" title="Resetuj zoom">Resetuj zoom</button>
+      <label class="pill checkLabel"><input id="toggleOrders" type="checkbox" checked /> zlecenia</label>
+      <label class="pill checkLabel"><input id="toggleEvents" type="checkbox" checked /> markery</label>
+      <label class="pill checkLabel"><input id="toggleAnchors" type="checkbox" checked /> anchory</label>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="chartWrap" id="chartWrap">
+    <canvas id="cvMain"></canvas>
+    <canvas id="cvSev"></canvas>
+    <canvas id="cvComp"></canvas>
+    <canvas id="cvSig"></canvas>
+    <canvas id="cvDefer"></canvas>
+
+    <div class="timelineWrap">
+      <div class="timelineHead">
+        <span id="tlFrom">Od —</span>
+        <span id="tlTo">Do —</span>
+      </div>
+      <div class="timelineSliders">
+        <input id="tlStart" type="range" min="0" max="100" value="0" step="1" />
+        <input id="tlEnd"   type="range" min="0" max="100" value="100" step="1" />
+      </div>
+    </div>
+
+    <div class="legendBar" id="legendBar">
+      <span><span class="legendDot" style="background:#ff7a30;"></span>Severity UP (impuls w górę)</span>
+      <span><span class="legendDot" style="background:#30a8ff;"></span>Severity DOWN (impuls w dół)</span>
+      <span><span class="legendDot" style="background:#ff4444;"></span>Próg aktywacji</span>
+      <span><span class="legendDot" style="background:#ffcc44;"></span>Shock (UP)</span>
+      <span><span class="legendDot" style="background:#44ddaa;"></span>Pressure</span>
+      <span><span class="legendDot" style="background:#7766ff;"></span>Momentum</span>
+      <span><span class="legendDot" style="background:#44ff44;"></span>BotSignal</span>
+      <span><span class="legendDot" style="background:#ffcc44;"></span>Anchor (siła wsparcia/oporu)</span>
+    </div>
+  </div>
+
+  <!-- CURRENT STATE -->
+  <div class="statePanel" id="statePanel">
+    <div class="stateItem">
+      <div class="sk">Severity UP ↑</div>
+      <div class="sv calm" id="svUp">—</div>
+    </div>
+    <div class="stateItem">
+      <div class="sk">Severity DOWN ↓</div>
+      <div class="sv calm" id="svDn">—</div>
+    </div>
+    <div class="stateItem">
+      <div class="sk">Aktywny kierunek</div>
+      <div class="sv calm" id="svDir">SPOKÓJ</div>
+    </div>
+    <div class="stateItem">
+      <div class="sk">Próg aktywacji</div>
+      <div class="sv" id="svThresh">0.28</div>
+    </div>
+    <div class="stateItem">
+      <div class="sk">Deferred Pool (quote)</div>
+      <div class="sv calm" id="svDeferred">0.00 USDT</div>
+    </div>
+    <div class="stateItem">
+      <div class="sk">Ostatni event</div>
+      <div class="sv" style="font-size:13px;" id="svLastEvt">—</div>
+    </div>
+  </div>
+
+  <!-- EVENT LOG -->
+  <div class="evtPanel" id="evtPanel">
+    <div class="evtHead">ZDARZENIA THROTTLINGU (ostatnie)</div>
+    <div id="evtList"></div>
+  </div>
+
+</div>
+
+<!-- CURSOR TOOLTIP -->
+<div id="cursorTooltip"></div>
+
+<script>
+"use strict";
+
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS & CONFIG
+// ═══════════════════════════════════════════════════════════
+const ACTIVATION_THRESHOLD = 0.28;   // default; overridden if bot sends config
+const W_SHOCK    = 0.28;
+const W_PRESSURE = 0.22;
+const W_MOMENTUM = 0.22;
+const W_PRICE    = 0.18;
+const W_DIRALIGN = 0.10;
+const TREND_BONUS = 0.08;
+const NORM_SHOCK     = 1.5;
+const NORM_PRESSURE  = 1.0;
+const NORM_MOMENTUM  = 1.0;
+const NORM_PRICE1M   = 0.60;
+const NORM_PRICE3M   = 1.20;
+
+const POLL_MS  = 8_000;
+const CHART_POLL_MS = 30_000;
+
+const PAD_L = 80, PAD_R = 16, PAD_T = 14, PAD_B = 24;
+const MAIN_PAD_R = 74;           // wider right margin for anchor axis
+const PAD_SUB_L = 80, PAD_SUB_R = 16, PAD_SUB_T = 4, PAD_SUB_B = 4;
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let DATA       = null;   // /data.json payload
+let indRows    = [];     // /api/indicator-history rows
+let botUi      = null;   // /api/bot-ui payload
+let symbol     = "BTCUSDT";
+
+const view = { i0: 0, i1: 0, yMid: 0, ySpan: 1000 };
+
+const cursor = {
+  tsMs: null,      // active cursor time
+  x: null,         // canvas X position (in main canvas coords)
+  priceY: null,    // canvas Y position of price at cursor (main canvas coords)
+  locked: false,
+};
+
+let animFrame = null;
+let dirty = false;
+
+// ═══════════════════════════════════════════════════════════
+// DOM REFS
+// ═══════════════════════════════════════════════════════════
+const cvMain  = document.getElementById("cvMain");
+const cvSev   = document.getElementById("cvSev");
+const cvComp  = document.getElementById("cvComp");
+const cvSig   = document.getElementById("cvSig");
+const cvDefer = document.getElementById("cvDefer");
+const gMain   = cvMain.getContext("2d");
+const gSev    = cvSev.getContext("2d");
+const gComp   = cvComp.getContext("2d");
+const gSig    = cvSig.getContext("2d");
+const gDefer  = cvDefer.getContext("2d");
+
+const tlStartEl = document.getElementById("tlStart");
+const tlEndEl   = document.getElementById("tlEnd");
+const tlFromEl  = document.getElementById("tlFrom");
+const tlToEl    = document.getElementById("tlTo");
+const liveTagEl = document.getElementById("liveTag");
+const ttEl      = document.getElementById("cursorTooltip");
+
+// ═══════════════════════════════════════════════════════════
+// URL / SYMBOL
+// ═══════════════════════════════════════════════════════════
+function getSymbolParam() {
+  const p = new URLSearchParams(location.search);
+  return (p.get("symbol") || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "BTCUSDT";
+}
+
+symbol = getSymbolParam();
+document.getElementById("metaSymbol").textContent = symbol;
+document.getElementById("backBtn").href = `/?symbol=${symbol}`;
+document.title = `⚡ Throttling — ${symbol}`;
+
+// ═══════════════════════════════════════════════════════════
+// MATH HELPERS
+// ═══════════════════════════════════════════════════════════
+function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+function safeNum(x, d = 0) { const n = Number(x); return Number.isFinite(n) ? n : d; }
+
+function computeSeverity(row, dir) {
+  if (!row) return 0;
+  const shock     = safeNum(row.shockScore, 0);
+  const shockDir  = safeNum(row.shockDir, 0);
+  const pressure  = safeNum(row.pressureScore, 0);
+  const momentum  = safeNum(row.momentumScore, 0);
+  const p1        = safeNum(row.priceChange1mPct, 0);
+  const p3        = safeNum(row.priceChange3mPct, 0);
+  const regime    = String(row.regime || "").toUpperCase();
+
+  // directional components
+  // shock is unsigned [0,1]; direction from shockDir
+  const dirShock    = dir < 0 ? (shockDir < 0 ? shock : 0) : (shockDir > 0 ? shock : 0);
+  const dirPressure = dir < 0 ? Math.max(0, -pressure) : Math.max(0, pressure);
+  const dirMomentum = dir < 0 ? Math.max(0, -momentum) : Math.max(0, momentum);
+  const dirP1       = dir < 0 ? Math.max(0, -p1) : Math.max(0, p1);
+  const dirP3       = dir < 0 ? Math.max(0, -p3) : Math.max(0, p3);
+  const dirAlign    = dir < 0 ? (shockDir < 0 ? 1 : 0) : (shockDir > 0 ? 1 : 0);
+
+  const shockN    = clamp(dirShock    / NORM_SHOCK,    0, 1);
+  const pressureN = clamp(dirPressure / NORM_PRESSURE, 0, 1);
+  const momentumN = clamp(dirMomentum / NORM_MOMENTUM, 0, 1);
+  const priceN    = clamp(0.5 * clamp(dirP1 / NORM_PRICE1M, 0, 1) + 0.5 * clamp(dirP3 / NORM_PRICE3M, 0, 1), 0, 1);
+
+  let sev = shockN * W_SHOCK + pressureN * W_PRESSURE + momentumN * W_MOMENTUM + priceN * W_PRICE + dirAlign * W_DIRALIGN;
+  if (regime === "TREND") sev += TREND_BONUS;
+  return clamp(sev, 0, 1);
+}
+
+function computeComponents(row, dir) {
+  // Returns { shock, pressure, momentum } fractional contributions
+  if (!row) return { shock: 0, pressure: 0, momentum: 0 };
+  const shock     = safeNum(row.shockScore, 0);
+  const shockDir  = safeNum(row.shockDir, 0);
+  const pressure  = safeNum(row.pressureScore, 0);
+  const momentum  = safeNum(row.momentumScore, 0);
+
+  const dirShock    = dir < 0 ? (shockDir < 0 ? shock : 0) : (shockDir > 0 ? shock : 0);
+  const dirPressure = dir < 0 ? Math.max(0, -pressure) : Math.max(0, pressure);
+  const dirMomentum = dir < 0 ? Math.max(0, -momentum) : Math.max(0, momentum);
+
+  return {
+    shock:    clamp(dirShock    / NORM_SHOCK,    0, 1) * W_SHOCK,
+    pressure: clamp(dirPressure / NORM_PRESSURE, 0, 1) * W_PRESSURE,
+    momentum: clamp(dirMomentum / NORM_MOMENTUM, 0, 1) * W_MOMENTUM,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS SIZING
+// ═══════════════════════════════════════════════════════════
+function resizeCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  const w = Math.round(rect.width  * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (cv.width !== w || cv.height !== h) {
+    cv.width  = w;
+    cv.height = h;
+  }
+}
+function resizeAll() {
+  [cvMain, cvSev, cvComp, cvSig, cvDefer].forEach(resizeCanvas);
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIEW HELPERS
+// ═══════════════════════════════════════════════════════════
+function xOf(i, n, cv, padL, padR) {
+  const w = cv.width - padL - padR;
+  const t = (i - view.i0) / Math.max(1, (view.i1 - 1) - view.i0);
+  return padL + t * w;
+}
+function yOfPrice(p) {
+  const h = cvMain.height - PAD_T - PAD_B;
+  const mn = view.yMid - view.ySpan / 2;
+  const mx = view.yMid + view.ySpan / 2;
+  const t  = (p - mn) / (mx - mn);
+  return (cvMain.height - PAD_B) - t * h;
+}
+
+// sub-chart Y: val in [lo,hi] → pixel
+function yOfSub(val, lo, hi, cv, padT, padB) {
+  const h = cv.height - padT - padB;
+  const t = (val - lo) / Math.max(1e-12, hi - lo);
+  return (cv.height - padB) - t * h;
+}
+
+function tsmsToIFrac(tsMs) {
+  if (!DATA?.plot?.t?.length) return null;
+  const t = DATA.plot.t;
+  const n = t.length;
+  if (tsMs <= t[0])       return 0;
+  if (tsMs >= t[n - 1])   return n - 1;
+  let lo = 0, hi = n - 1;
+  while (lo + 1 < hi) {
+    const mid = (lo + hi) >> 1;
+    if (t[mid] <= tsMs) lo = mid; else hi = mid;
+  }
+  const frac = (tsMs - t[lo]) / Math.max(1, t[hi] - t[lo]);
+  return lo + frac;
+}
+
+function iToTsMs(i) {
+  if (!DATA?.plot?.t?.length) return null;
+  return DATA.plot.t[clamp(Math.round(i), 0, DATA.plot.t.length - 1)];
+}
+
+function xOfTsMs(tsMs, cv, padL, padR) {
+  const iFrac = tsmsToIFrac(tsMs);
+  if (iFrac === null) return null;
+  const w = cv.width - padL - padR;
+  const t = (iFrac - view.i0) / Math.max(1, (view.i1 - 1) - view.i0);
+  return padL + t * w;
+}
+
+// ═══════════════════════════════════════════════════════════
+// INDICATOR LOOKUP (closest row by tsMs)
+// ═══════════════════════════════════════════════════════════
+function pickIndRow(tsMs) {
+  if (!indRows.length) return null;
+  if (!Number.isFinite(tsMs)) return indRows[indRows.length - 1];
+  let best = null, bestD = Infinity;
+  for (const r of indRows) {
+    const d = Math.abs(r.tsMs - tsMs);
+    if (d < bestD) { best = r; bestD = d; }
+  }
+  return best;
+}
+
+// map indRows to time-indexed severity arrays aligned to view
+function buildSubSeries(key, fn) {
+  if (!DATA?.plot?.t?.length || !indRows.length) return [];
+  const out = [];
+  for (let i = view.i0; i < view.i1; i++) {
+    const tsMs = DATA.plot.t[i];
+    const row = pickIndRow(tsMs);
+    out.push({ i, tsMs, val: fn(row) });
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORMAT HELPERS
+// ═══════════════════════════════════════════════════════════
+function fmt2(v) { return Number.isFinite(Number(v)) ? Number(v).toFixed(2) : "—"; }
+function fmt4(v) { return Number.isFinite(Number(v)) ? Number(v).toFixed(4) : "—"; }
+function fmtPct(v) { return (safeNum(v) * 100).toFixed(1) + "%"; }
+function fmtTs(ms) {
+  if (!Number.isFinite(ms)) return "—";
+  const d = new Date(ms);
+  return `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;
+}
+function fmtEvtType(t) {
+  return String(t || "").replace("THROTTLE_", "").replace(/_/g, " ");
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── DRAW MAIN PRICE CHART ──
+// ═══════════════════════════════════════════════════════════
+function drawMain() {
+  if (!DATA?.plot?.t?.length) {
+    gMain.clearRect(0, 0, cvMain.width, cvMain.height);
+    gMain.fillStyle = "#000";
+    gMain.fillRect(0, 0, cvMain.width, cvMain.height);
+    gMain.fillStyle = "rgba(255,255,255,0.3)";
+    gMain.font = "14px system-ui";
+    gMain.textAlign = "center";
+    gMain.fillText("Ładowanie danych…", cvMain.width / 2, cvMain.height / 2);
+    return;
+  }
+  const g = gMain, cv = cvMain;
+  const t = DATA.plot.t;
+  const close = DATA.plot.close;
+  const n = t.length;
+  const mPadR = MAIN_PAD_R;
+  const axX = cv.width - mPadR;   // left edge of right-axis area
+
+  // Background
+  g.fillStyle = "#000";
+  g.fillRect(0, 0, cv.width, cv.height);
+
+  // Grid lines (horizontal price)
+  const mn = view.yMid - view.ySpan / 2;
+  const mx = view.yMid + view.ySpan / 2;
+  const priceStep = niceStep(view.ySpan, 6);
+  const pStart = Math.ceil(mn / priceStep) * priceStep;
+  g.strokeStyle = "rgba(255,255,255,0.06)";
+  g.lineWidth = 1;
+  for (let p = pStart; p <= mx; p += priceStep) {
+    const y = yOfPrice(p);
+    g.beginPath(); g.moveTo(PAD_L, y); g.lineTo(axX, y); g.stroke();
+    g.fillStyle = "rgba(255,255,255,0.38)";
+    g.font = "10px system-ui"; g.textAlign = "right";
+    g.fillText(p.toFixed(priceStep < 1 ? 2 : 0), PAD_L - 4, y + 3.5);
+  }
+
+  // Time axis labels
+  const barCount = view.i1 - view.i0;
+  const labelEvery = Math.max(1, Math.ceil(barCount / 8));
+  g.fillStyle = "rgba(255,255,255,0.38)";
+  g.font = "10px system-ui"; g.textAlign = "center";
+  for (let i = view.i0; i < view.i1; i += labelEvery) {
+    const x = xOf(i, n, cv, PAD_L, mPadR);
+    const d = new Date(t[i]);
+    const lbl = String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+    g.fillText(lbl, x, cv.height - 7);
+  }
+
+  // Price line
+  g.strokeStyle = "#4a9eff";
+  g.lineWidth = 1.5;
+  g.beginPath();
+  let started = false;
+  for (let i = view.i0; i < view.i1; i++) {
+    const x = xOf(i, n, cv, PAD_L, mPadR);
+    const y = yOfPrice(close[i]);
+    if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y);
+  }
+  g.stroke();
+
+  // ── ANCHOR LAYER ───────────────────────────────────────────────────────────
+  const showAnchors = document.getElementById("toggleAnchors").checked;
+  const anchorList  = botUi?.payload?.anchors || [];
+
+  // Right axis background (always visible so chart width stays stable)
+  g.fillStyle = "rgba(2,6,14,0.88)";
+  g.fillRect(axX, 0, mPadR, cv.height);
+  g.strokeStyle = "rgba(255,255,255,0.12)";
+  g.lineWidth = 1;
+  g.beginPath(); g.moveTo(axX, PAD_T); g.lineTo(axX, cv.height - PAD_B); g.stroke();
+
+  if (showAnchors && anchorList.length) {
+    const visAnchors = anchorList.filter(a => {
+      const y = yOfPrice(a.price);
+      return y >= PAD_T - 2 && y <= cv.height - PAD_B + 2;
+    });
+    const maxStr = Math.max(1, ...visAnchors.map(a => a.strength));
+
+    // Axis title
+    g.fillStyle = "rgba(255,200,80,0.6)";
+    g.font = "bold 9px system-ui"; g.textAlign = "center";
+    g.fillText("SILA", axX + mPadR / 2, PAD_T + 8);
+    g.fillStyle = "rgba(255,200,80,0.3)";
+    g.font = "8px system-ui"; g.textAlign = "left";
+    g.fillText(maxStr.toFixed(0), axX + 2, PAD_T + 18);
+    g.fillText("0", axX + 2, cv.height - PAD_B - 2);
+
+    for (const a of visAnchors) {
+      const y  = yOfPrice(a.price);
+      const sN = a.strength / maxStr;
+      const alpha = 0.28 + sN * 0.60;
+      const gr  = Math.round(170 + sN * 50);
+      const col = "rgba(255," + gr + ",20," + alpha.toFixed(2) + ")";
+      const colS = "rgba(255," + gr + ",20,0.9)";
+
+      // Zone band
+      if (a.zone > 0) {
+        const yTop = yOfPrice(a.price + a.zone);
+        const yBot = yOfPrice(a.price - a.zone);
+        g.fillStyle = "rgba(255," + gr + ",20,0.05)";
+        g.fillRect(PAD_L, Math.min(yTop, yBot), axX - PAD_L, Math.abs(yBot - yTop));
+      }
+
+      // Horizontal dashed line
+      g.strokeStyle = col;
+      g.lineWidth = 1;
+      g.setLineDash([5, 7]);
+      g.beginPath(); g.moveTo(PAD_L, y); g.lineTo(axX, y); g.stroke();
+      g.setLineDash([]);
+
+      // Diamond at left edge
+      g.fillStyle = col;
+      g.beginPath(); g.arc(PAD_L - 1, y, 3, 0, Math.PI * 2); g.fill();
+
+      // Right axis: strength bar
+      const barW = Math.round(sN * (mPadR - 6));
+      g.fillStyle = "rgba(255," + gr + ",20,0.15)";
+      g.fillRect(axX + 1, y - 5, mPadR - 2, 10);
+      g.fillStyle = col;
+      g.fillRect(axX + 1, y - 3, barW, 6);
+
+      // Price label (above bar)
+      g.fillStyle = colS;
+      g.font = "8px system-ui"; g.textAlign = "left";
+      g.fillText(fmt2(a.price), axX + 2, y - 6);
+      // Strength label (below bar)
+      g.fillStyle = "rgba(255," + gr + ",20,0.7)";
+      g.fillText(a.strength.toFixed(1), axX + 2, y + 13);
+    }
+  } else {
+    g.fillStyle = "rgba(255,255,255,0.14)";
+    g.font = "9px system-ui"; g.textAlign = "center";
+    g.fillText("anchory", axX + mPadR / 2, PAD_T + 8);
+    g.font = "8px system-ui";
+    g.fillText("(wyl.)", axX + mPadR / 2, PAD_T + 18);
+  }
+  // ── / ANCHOR LAYER ─────────────────────────────────────────────────────────
+
+  // Orders overlay
+  if (document.getElementById("toggleOrders").checked && botUi?.payload?.orders) {
+    for (const o of botUi.payload.orders) {
+      const px = safeNum(o.price, 0);
+      if (!px) continue;
+      const y = yOfPrice(px);
+      if (y < PAD_T - 2 || y > cv.height - PAD_B + 2) continue;
+      g.strokeStyle = o.side === "Sell" ? "rgba(255,100,100,0.55)" : "rgba(80,220,120,0.55)";
+      g.lineWidth = 1;
+      g.setLineDash([4, 4]);
+      g.beginPath(); g.moveTo(PAD_L, y); g.lineTo(axX, y); g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = o.side === "Sell" ? "rgba(255,100,100,0.8)" : "rgba(80,220,120,0.8)";
+      g.font = "9px system-ui"; g.textAlign = "left";
+      g.fillText(o.side[0] + " " + fmt2(px), PAD_L + 2, y - 2);
+    }
+  }
+
+  // Throttle event markers
+  if (document.getElementById("toggleEvents").checked && botUi?.payload?.impulse?.recentEvents) {
+    for (const ev of botUi.payload.impulse.recentEvents) {
+      const x = xOfTsMs(ev.ts, cv, PAD_L, mPadR);
+      if (x === null || x < PAD_L || x > axX) continue;
+      const isApply   = ev.type === "THROTTLE_APPLIED";
+      const isRestore = String(ev.type || "").includes("RESTORED") || String(ev.type || "").includes("CONFIRMED");
+      const col = isApply ? "#ff8833" : isRestore ? "#44ee88" : "rgba(200,180,255,0.7)";
+      g.strokeStyle = col;
+      g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(x, PAD_T); g.lineTo(x, PAD_T + 10); g.stroke();
+      g.fillStyle = col;
+      g.font = "9px system-ui"; g.textAlign = "center";
+      g.fillText(isApply ? "T" : isRestore ? "R" : "·", x, PAD_T + 18);
+    }
+  }
+
+  // Current price line
+  if (botUi?.payload?.currentPrice) {
+    const cp = safeNum(botUi.payload.currentPrice, 0);
+    if (cp > 0) {
+      const y = yOfPrice(cp);
+      g.strokeStyle = "rgba(255,255,100,0.7)";
+      g.lineWidth = 1;
+      g.setLineDash([2, 5]);
+      g.beginPath(); g.moveTo(PAD_L, y); g.lineTo(axX, y); g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = "rgba(255,255,100,0.85)";
+      g.font = "10px system-ui"; g.textAlign = "right";
+      g.fillText(fmt2(cp), PAD_L - 3, y + 3.5);
+    }
+  }
+
+  // Cursor
+  if (cursor.x !== null && cursor.x >= PAD_L && cursor.x <= axX) {
+    g.strokeStyle = "rgba(255,255,255,0.3)";
+    g.lineWidth = 1;
+    g.setLineDash([3, 5]);
+    g.beginPath(); g.moveTo(cursor.x, PAD_T); g.lineTo(cursor.x, cv.height - PAD_B); g.stroke();
+    g.setLineDash([]);
+    // Dot on price line
+    if (cursor.priceY !== null) {
+      const dotR = cursor.locked ? 6 : 4;
+      g.beginPath();
+      g.arc(cursor.x, cursor.priceY, dotR, 0, Math.PI * 2);
+      g.fillStyle = cursor.locked ? "#ffcc44" : "rgba(255,255,255,0.85)";
+      g.fill();
+      if (cursor.locked) {
+        g.strokeStyle = "rgba(255,200,50,0.6)";
+        g.lineWidth = 1.5;
+        g.stroke();
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── DRAW SEVERITY CHART ──
+// ═══════════════════════════════════════════════════════════
+function drawSeverity() {
+  const g = gSev, cv = cvSev;
+  g.fillStyle = "#040a14"; g.fillRect(0, 0, cv.width, cv.height);
+
+  const pL = PAD_SUB_L, pR = PAD_SUB_R, pT = PAD_SUB_T, pB = PAD_SUB_B;
+
+  // Y: -1 (down full) → 0 (center) → +1 (up full)
+  const yS = (val) => yOfSub(val, -1, 1, cv, pT, pB);
+
+  const mid = yS(0);
+
+  // Background bands
+  g.fillStyle = "rgba(255,100,40,0.04)";
+  g.fillRect(pL, pT, cv.width - pL - pR, mid - pT);
+  g.fillStyle = "rgba(40,140,255,0.04)";
+  g.fillRect(pL, mid, cv.width - pL - pR, cv.height - pB - mid);
+
+  // Grid: zero line
+  g.strokeStyle = "rgba(255,255,255,0.18)"; g.lineWidth = 1; g.setLineDash([]);
+  g.beginPath(); g.moveTo(pL, mid); g.lineTo(cv.width - pR, mid); g.stroke();
+
+  // Activation threshold lines
+  const yAct = yS(ACTIVATION_THRESHOLD);
+  const yActD = yS(-ACTIVATION_THRESHOLD);
+  g.strokeStyle = "rgba(255,60,60,0.75)"; g.lineWidth = 1; g.setLineDash([4, 5]);
+  g.beginPath(); g.moveTo(pL, yAct);  g.lineTo(cv.width - pR, yAct);  g.stroke();
+  g.beginPath(); g.moveTo(pL, yActD); g.lineTo(cv.width - pR, yActD); g.stroke();
+  g.setLineDash([]);
+
+  // Label
+  g.fillStyle = "rgba(255,60,60,0.7)"; g.font = "9px system-ui"; g.textAlign = "left";
+  g.fillText(`▶ ${(ACTIVATION_THRESHOLD*100).toFixed(0)}%`, pL + 2, yAct - 2);
+  g.fillText(`▶ ${(ACTIVATION_THRESHOLD*100).toFixed(0)}%`, pL + 2, yActD + 9);
+
+  if (!DATA?.plot?.t?.length || !indRows.length) { drawSubAxisLabel(g, cv, pL, "Severity"); return; }
+
+  // UP severity area (positive side)
+  const sevUpPts = buildSubSeries("sevUp",  (r) =>  computeSeverity(r,  1));
+  const sevDnPts = buildSubSeries("sevDn",  (r) => -computeSeverity(r, -1));
+
+  function drawArea(pts, colorFill, colorStroke, above) {
+    if (!pts.length) return;
+    const n = DATA.plot.t.length;
+    g.beginPath();
+    const x0 = xOf(pts[0].i, n, cv, pL, pR);
+    g.moveTo(x0, mid);
+    for (const p of pts) {
+      const x = xOf(p.i, n, cv, pL, pR);
+      const y = yS(p.val);
+      g.lineTo(x, y);
+    }
+    const xLast = xOf(pts[pts.length - 1].i, n, cv, pL, pR);
+    g.lineTo(xLast, mid);
+    g.closePath();
+    g.fillStyle = colorFill; g.fill();
+    g.strokeStyle = colorStroke; g.lineWidth = 1.2;
+    g.beginPath();
+    for (let idx = 0; idx < pts.length; idx++) {
+      const p = pts[idx];
+      const x = xOf(p.i, n, cv, pL, pR);
+      const y = yS(p.val);
+      if (idx === 0) g.moveTo(x, y); else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+
+  drawArea(sevUpPts, "rgba(255,120,40,0.35)", "rgba(255,140,50,0.85)", true);
+  drawArea(sevDnPts, "rgba(40,140,255,0.30)", "rgba(60,160,255,0.80)", false);
+
+  // Y axis labels
+  g.fillStyle = "rgba(255,255,255,0.38)"; g.font = "9px system-ui"; g.textAlign = "right";
+  g.fillText("UP +1",  pL - 3, pT + 10);
+  g.fillText("0",       pL - 3, mid + 3);
+  g.fillText("DN -1",  pL - 3, cv.height - pB - 2);
+
+  // Strip title
+  drawSubAxisLabel(g, cv, pL, "SEVERITY");
+
+  // Cursor
+  drawSubCursor(g, cv, pL, pR, pT, pB);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── DRAW COMPONENTS CHART ──
+// ═══════════════════════════════════════════════════════════
+function drawComponents() {
+  const g = gComp, cv = cvComp;
+  g.fillStyle = "#040c10"; g.fillRect(0, 0, cv.width, cv.height);
+
+  const pL = PAD_SUB_L, pR = PAD_SUB_R, pT = PAD_SUB_T, pB = PAD_SUB_B;
+  const yS = (val) => yOfSub(val, -1, 1, cv, pT, pB);
+  const mid = yS(0);
+
+  g.strokeStyle = "rgba(255,255,255,0.18)"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(pL, mid); g.lineTo(cv.width - pR, mid); g.stroke();
+
+  if (!DATA?.plot?.t?.length || !indRows.length) { drawSubAxisLabel(g, cv, pL, "Składowe"); return; }
+
+  const n = DATA.plot.t.length;
+
+  // Draw stacked for each direction
+  // DOWN (negative side): pressure + momentum (no shock for down per formula)
+  // UP (positive side):   shock + pressure + momentum
+
+  function drawStack(dir) {
+    const sign = dir < 0 ? -1 : 1;
+    const layers = dir < 0
+      ? [
+          { key: "pressure", color: "rgba(40,220,160,0.45)", stroke: "rgba(50,230,170,0.8)"  },
+          { key: "momentum", color: "rgba(120,100,255,0.40)", stroke: "rgba(140,120,255,0.75)" },
+        ]
+      : [
+          { key: "shock",    color: "rgba(255,200,40,0.45)",  stroke: "rgba(255,210,60,0.85)"  },
+          { key: "pressure", color: "rgba(40,220,160,0.35)",  stroke: "rgba(50,230,170,0.7)"   },
+          { key: "momentum", color: "rgba(120,100,255,0.30)", stroke: "rgba(140,120,255,0.65)" },
+        ];
+
+    for (const layer of layers) {
+      g.beginPath();
+      let prevStack = 0;
+      const pts = buildSubSeries(layer.key, (r) => {
+        const c = computeComponents(r, dir);
+        return c[layer.key] || 0;
+      });
+      const stackPts = pts.map((p) => {
+        const v = sign * p.val;
+        const base = sign * prevStack;
+        return { ...p, v, base };
+      });
+
+      // Re-compute with running stack
+      const runPts = [];
+      let running = 0;
+      for (const p of buildSubSeries(layer.key, (r) => computeComponents(r, dir)[layer.key] || 0)) {
+        const top = running + p.val;
+        runPts.push({ i: p.i, top: sign * top, base: sign * running });
+        running = top;
+      }
+
+      if (!runPts.length) continue;
+
+      // area fill (between base and top)
+      g.beginPath();
+      g.moveTo(xOf(runPts[0].i, n, cv, pL, pR), yS(runPts[0].base));
+      for (const p of runPts) g.lineTo(xOf(p.i, n, cv, pL, pR), yS(p.top));
+      for (let i = runPts.length - 1; i >= 0; i--) g.lineTo(xOf(runPts[i].i, n, cv, pL, pR), yS(runPts[i].base));
+      g.closePath();
+      g.fillStyle = layer.color; g.fill();
+    }
+  }
+
+  drawStack(1);   // UP → above center
+  drawStack(-1);  // DOWN → below center
+
+  g.fillStyle = "rgba(255,255,255,0.38)"; g.font = "9px system-ui"; g.textAlign = "right";
+  g.fillText("UP",  pL - 3, pT + 10);
+  g.fillText("DN",  pL - 3, cv.height - pB - 2);
+
+  drawSubAxisLabel(g, cv, pL, "SKŁADOWE");
+  drawSubCursor(g, cv, pL, pR, pT, pB);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── DRAW BOT SIGNAL CHART ──
+// ═══════════════════════════════════════════════════════════
+function drawBotSignal() {
+  const g = gSig, cv = cvSig;
+  g.fillStyle = "#040810"; g.fillRect(0, 0, cv.width, cv.height);
+
+  const pL = PAD_SUB_L, pR = PAD_SUB_R, pT = PAD_SUB_T, pB = PAD_SUB_B;
+  const yS = (val) => yOfSub(val, -10, 10, cv, pT, pB);
+  const mid = yS(0);
+
+  // Regime background
+  if (DATA?.plot?.t?.length && indRows.length) {
+    const n = DATA.plot.t.length;
+    const regimePts = buildSubSeries("regime", (r) => String(r?.regime || "").toUpperCase());
+    for (let k = 0; k < regimePts.length - 1; k++) {
+      const p = regimePts[k];
+      const pNext = regimePts[k + 1];
+      const x1 = xOf(p.i,    n, cv, pL, pR);
+      const x2 = xOf(pNext.i, n, cv, pL, pR);
+      const reg = p.val;
+      let bg = null;
+      if (reg === "TREND")      bg = "rgba(255,140,0,0.12)";
+      else if (reg === "RANGE") bg = "rgba(80,80,80,0.10)";
+      else                      bg = "rgba(60,100,200,0.08)";
+      g.fillStyle = bg;
+      g.fillRect(x1, pT, x2 - x1, cv.height - pT - pB);
+    }
+  }
+
+  g.strokeStyle = "rgba(255,255,255,0.15)"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(pL, mid); g.lineTo(cv.width - pR, mid); g.stroke();
+
+  if (!DATA?.plot?.t?.length || !indRows.length) { drawSubAxisLabel(g, cv, pL, "BotSignal"); return; }
+
+  const n = DATA.plot.t.length;
+  const sigPts = buildSubSeries("sig", (r) => safeNum(r?.botSignal, 0));
+
+  // Colored line: green above 0, red below
+  let lastX = null, lastY = null, lastVal = null;
+  for (const p of sigPts) {
+    const x = xOf(p.i, n, cv, pL, pR);
+    const y = yS(p.val);
+    if (lastX !== null) {
+      g.strokeStyle = lastVal >= 0 ? "#44ee88" : "#ff5555";
+      g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(lastX, lastY); g.lineTo(x, y); g.stroke();
+    }
+    lastX = x; lastY = y; lastVal = p.val;
+  }
+
+  g.fillStyle = "rgba(255,255,255,0.35)"; g.font = "9px system-ui"; g.textAlign = "right";
+  g.fillText("+10", pL - 3, pT + 9);
+  g.fillText("0",    pL - 3, mid + 3);
+  g.fillText("-10",  pL - 3, cv.height - pB - 2);
+
+  drawSubAxisLabel(g, cv, pL, "BOT SIGNAL");
+  drawSubCursor(g, cv, pL, pR, pT, pB);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ── DRAW DEFERRED POOL CHART ──
+// ═══════════════════════════════════════════════════════════
+function drawDeferred() {
+  const g = gDefer, cv = cvDefer;
+  g.fillStyle = "#060804"; g.fillRect(0, 0, cv.width, cv.height);
+
+  const pL = PAD_SUB_L, pR = PAD_SUB_R, pT = 2, pB = 2;
+
+  // Show current deferred from botUi (single bar)
+  const deferred = safeNum(botUi?.payload?.impulse?.deferredQuote, 0);
+  const maxDefer = Math.max(1, deferred * 1.5, 50);
+
+  const yS = (val) => yOfSub(val, 0, maxDefer, cv, pT, pB);
+
+  const usableW = cv.width - pL - pR;
+
+  // Show as a simple current-value bar + text — historical not available without new API
+  g.fillStyle = deferred > 0 ? "rgba(255,180,40,0.35)" : "rgba(255,255,255,0.06)";
+  const barH = Math.max(2, cv.height - pT - pB - yS(deferred) + pB);
+  g.fillRect(pL, cv.height - pB - barH, usableW, barH);
+
+  g.fillStyle = deferred > 0 ? "rgba(255,200,60,0.9)" : "rgba(255,255,255,0.4)";
+  g.font = "10px system-ui"; g.textAlign = "left";
+  g.fillText(`Deferred pool: ${deferred.toFixed(2)} USDT`, pL + 4, cv.height / 2 + 4);
+
+  drawSubAxisLabel(g, cv, pL, "DEFERRED");
+  drawSubCursor(g, cv, pL, pR, pT, pB);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ═══════════════════════════════════════════════════════════
+function drawSubAxisLabel(g, cv, padL, label) {
+  g.fillStyle = "rgba(255,255,255,0.28)";
+  g.font = "9px system-ui"; g.textAlign = "right";
+  g.fillText(label, padL - 3, 10);
+}
+
+function drawSubCursor(g, cv, pL, pR, pT, pB) {
+  if (cursor.tsMs === null || !DATA?.plot?.t?.length) return;
+  const x = xOfTsMs(cursor.tsMs, cv, pL, pR);
+  if (x === null || x < pL || x > cv.width - pR) return;
+  g.strokeStyle = "rgba(255,255,255,0.22)"; g.lineWidth = 1; g.setLineDash([2, 4]);
+  g.beginPath(); g.moveTo(x, pT); g.lineTo(x, cv.height - pB); g.stroke();
+  g.setLineDash([]);
+}
+
+function niceStep(range, maxTicks) {
+  const raw = range / maxTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const m of [1, 2, 2.5, 5, 10]) {
+    if (mag * m >= raw) return mag * m;
+  }
+  return mag * 10;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAW ALL
+// ═══════════════════════════════════════════════════════════
+function drawAll() {
+  resizeAll();
+  drawMain();
+  drawSeverity();
+  drawComponents();
+  drawBotSignal();
+  drawDeferred();
+  dirty = false;
+}
+
+function schedDraw() {
+  if (dirty) return;
+  dirty = true;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animFrame = requestAnimationFrame(() => { drawAll(); animFrame = null; });
+}
+
+// ═══════════════════════════════════════════════════════════
+// TIMELINE CONTROLS
+// ═══════════════════════════════════════════════════════════
+function updateTimelineInfo() {
+  if (!DATA?.plot?.t?.length) return;
+  const t = DATA.plot.t;
+  const n = t.length;
+  tlFromEl.textContent = `Od: ${fmtTs(t[view.i0])}`;
+  tlToEl.textContent   = `Do: ${fmtTs(t[Math.min(view.i1 - 1, n - 1)])}`;
+}
+
+function syncViewFromSliders() {
+  if (!DATA?.plot?.t?.length) return;
+  const n = DATA.plot.t.length;
+  const max = n - 1;
+  let s = clamp(Math.round((tlStartEl.value / 100) * max), 0, max - 1);
+  let e = clamp(Math.round((tlEndEl.value   / 100) * max), 0, max);
+  if (e <= s) e = Math.min(max, s + 1);
+  view.i0 = s;
+  view.i1 = e + 1;
+  fitY();
+  updateTimelineInfo();
+  schedDraw();
+}
+
+function fitY() {
+  if (!DATA?.plot?.close?.length) return;
+  const close = DATA.plot.close;
+  let mn = Infinity, mx = -Infinity;
+  for (let i = view.i0; i < view.i1; i++) {
+    if (close[i] < mn) mn = close[i];
+    if (close[i] > mx) mx = close[i];
+  }
+  if (!Number.isFinite(mn)) return;
+  const pad = (mx - mn) * 0.12 || mn * 0.01;
+  view.yMid  = (mn + mx) / 2;
+  view.ySpan = (mx - mn) + pad * 2;
+}
+
+tlStartEl.addEventListener("input", syncViewFromSliders);
+tlEndEl.addEventListener("input", syncViewFromSliders);
+
+// ═══════════════════════════════════════════════════════════
+// CURSOR INTERACTION
+// ═══════════════════════════════════════════════════════════
+function canvasMouseMove(ev, cv) {
+  if (!DATA?.plot?.t?.length) return;
+  const rect  = cv.getBoundingClientRect();
+  const dpr   = window.devicePixelRatio || 1;
+  const rx    = (ev.clientX - rect.left) * dpr;
+  const n     = DATA.plot.t.length;
+  const ePadR = cv === cvMain ? MAIN_PAD_R : PAD_SUB_R;
+  const w     = cv.width - PAD_L - ePadR;
+  const frac  = clamp((rx - PAD_L) / w, 0, 1);
+  const iFrac = view.i0 + frac * (view.i1 - view.i0 - 1);
+  const idx   = clamp(Math.round(iFrac), view.i0, view.i1 - 1);
+
+  if (!cursor.locked) {
+    cursor.tsMs   = DATA.plot.t[idx];
+    cursor.x      = xOf(idx, n, cvMain, PAD_L, MAIN_PAD_R);
+    cursor.priceY = (DATA.plot.close && DATA.plot.close[idx] != null) ? yOfPrice(DATA.plot.close[idx]) : null;
+  }
+
+  // Tooltip: position near price dot on main canvas
+  const mainRect = cvMain.getBoundingClientRect();
+  if (cursor.priceY !== null && cursor.x !== null) {
+    const dotScreenX = mainRect.left + cursor.x / dpr;
+    const dotScreenY = mainRect.top  + cursor.priceY / dpr;
+    updateTooltip(dotScreenX, dotScreenY, cursor.tsMs);
+  } else {
+    updateTooltip(ev.clientX, ev.clientY, cursor.tsMs);
+  }
+  schedDraw();
+}
+
+function canvasMouseLeave() {
+  if (!cursor.locked) {
+    cursor.x      = null;
+    cursor.tsMs   = null;
+    cursor.priceY = null;
+    ttEl.style.display = "none";
+    schedDraw();
+  }
+}
+
+function canvasClick(ev, cv) {
+  if (!DATA?.plot?.t?.length) return;
+  const rect  = cv.getBoundingClientRect();
+  const dpr   = window.devicePixelRatio || 1;
+  const rx    = (ev.clientX - rect.left) * dpr;
+  const n     = DATA.plot.t.length;
+  const ePadR = cv === cvMain ? MAIN_PAD_R : PAD_SUB_R;
+  const w     = cv.width - PAD_L - ePadR;
+  const frac  = clamp((rx - PAD_L) / w, 0, 1);
+  const iFrac = view.i0 + frac * (view.i1 - view.i0 - 1);
+  const idx   = clamp(Math.round(iFrac), view.i0, view.i1 - 1);
+  cursor.tsMs   = DATA.plot.t[idx];
+  cursor.x      = xOf(idx, n, cvMain, PAD_L, MAIN_PAD_R);
+  cursor.priceY = (DATA.plot.close && DATA.plot.close[idx] != null) ? yOfPrice(DATA.plot.close[idx]) : null;
+  cursor.locked = !cursor.locked;
+  schedDraw();
+}
+
+for (const cv of [cvMain, cvSev, cvComp, cvSig, cvDefer]) {
+  cv.addEventListener("mousemove", (e) => canvasMouseMove(e, cv));
+  cv.addEventListener("mouseleave", canvasMouseLeave);
+  cv.addEventListener("click",     (e) => canvasClick(e, cv));
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════
+function updateTooltip(cx, cy, tsMs) {
+  const row = pickIndRow(tsMs);
+  if (!row) { ttEl.style.display = "none"; return; }
+
+  const sevUp = computeSeverity(row, 1);
+  const sevDn = computeSeverity(row, -1);
+  const compUp = computeComponents(row, 1);
+  const compDn = computeComponents(row, -1);
+  const botSignal = safeNum(row.botSignal, 0);
+  const thresh = ACTIVATION_THRESHOLD;
+
+  function cls(v) {
+    if (v >= thresh * 1.3) return "hot";
+    if (v >= thresh)       return "up";
+    return "";
+  }
+
+  ttEl.innerHTML = `
+    <div class="tt-row"><span class="tt-k">⏱ ${fmtTs(tsMs)}</span></div>
+    <div class="tt-sep"></div>
+    <div class="tt-row"><span class="tt-k">Cena</span><span class="tt-v">${fmt2(row.price)}</span></div>
+    <div class="tt-row"><span class="tt-k">Regime</span><span class="tt-v">${row.regime || "?"}</span></div>
+    <div class="tt-sep"></div>
+    <div class="tt-row"><span class="tt-k">Severity UP ↑</span><span class="tt-v ${cls(sevUp)} up">${fmtPct(sevUp)}</span></div>
+    <div class="tt-row"><span class="tt-k">Severity DOWN ↓</span><span class="tt-v ${cls(sevDn)} dn">${fmtPct(sevDn)}</span></div>
+    <div class="tt-row"><span class="tt-k">Próg aktywacji</span><span class="tt-v">${fmtPct(thresh)}</span></div>
+    <div class="tt-sep"></div>
+    <div class="tt-row"><span class="tt-k">Shock</span><span class="tt-v">${fmt4(row.shockScore)} (dir ${row.shockDir > 0 ? "↑" : row.shockDir < 0 ? "↓" : "·"})</span></div>
+    <div class="tt-row"><span class="tt-k">Pressure</span><span class="tt-v">${fmt4(row.pressureScore)}</span></div>
+    <div class="tt-row"><span class="tt-k">Momentum</span><span class="tt-v">${fmt4(row.momentumScore)}</span></div>
+    <div class="tt-row"><span class="tt-k">BotSignal</span><span class="tt-v" style="color:${botSignal>=0?'#6ef09a':'#ff7070'}">${botSignal.toFixed(2)}</span></div>
+  `;
+
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let tx = cx + 14, ty = cy - 10;
+  const ttW = 240, ttH = 260;
+  if (tx + ttW > vw - 10) tx = cx - ttW - 10;
+  if (ty + ttH > vh - 10) ty = vh - ttH - 10;
+  ttEl.style.left    = tx + "px";
+  ttEl.style.top     = ty + "px";
+  ttEl.style.display = "block";
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZOOM / PAN (main canvas wheel)
+// ═══════════════════════════════════════════════════════════
+cvMain.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (!DATA?.plot?.t?.length) return;
+  const total = DATA.plot.t.length;
+  const n = view.i1 - view.i0;
+  const factor = e.deltaY > 0 ? 1.15 : 0.87;
+  const newN = clamp(Math.round(n * factor), 40, total);
+  const rect = cvMain.getBoundingClientRect();
+  const dpr  = window.devicePixelRatio || 1;
+  const rx   = (e.clientX - rect.left) * dpr;
+  const tt   = clamp((rx - PAD_L) / (cvMain.width - PAD_L - MAIN_PAD_R), 0, 1);
+  const center = view.i0 + tt * n;
+  let i0 = Math.round(center - tt * newN);
+  let i1 = i0 + newN;
+  if (i0 < 0) { i1 -= i0; i0 = 0; }
+  if (i1 > total) { const d = i1 - total; i0 -= d; i1 -= d; }
+  view.i0 = clamp(i0, 0, total - 2);
+  view.i1 = clamp(i1, view.i0 + 2, total);
+  syncSlidersFromView();
+  fitY();
+  updateTimelineInfo();
+  schedDraw();
+}, { passive: false });
+
+function syncSlidersFromView() {
+  if (!DATA?.plot?.t?.length) return;
+  const n = DATA.plot.t.length - 1;
+  tlStartEl.value = String(Math.round((view.i0 / n) * 100));
+  tlEndEl.value   = String(Math.round(((view.i1 - 1) / n) * 100));
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOLBAR BUTTONS
+// ═══════════════════════════════════════════════════════════
+document.getElementById("btnReload").addEventListener("click", loadAll);
+document.getElementById("btnResetZoom").addEventListener("click", () => {
+  if (!DATA?.plot?.t?.length) return;
+  view.i0 = 0;
+  view.i1 = DATA.plot.t.length;
+  syncSlidersFromView();
+  fitY();
+  updateTimelineInfo();
+  schedDraw();
+});
+document.getElementById("toggleOrders").addEventListener("change", schedDraw);
+document.getElementById("toggleEvents").addEventListener("change", schedDraw);
+document.getElementById("toggleAnchors").addEventListener("change", schedDraw);
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════════════════════
+async function loadChartData() {
+  try {
+    const res  = await fetch(`/data.json?symbol=${encodeURIComponent(symbol)}&_=${Date.now()}`);
+    const data = await res.json();
+    const isFirstLoad = (DATA === null);
+    DATA = data;
+    const n = DATA.plot.t.length;
+    if (n > 0) {
+      if (isFirstLoad) {
+        // Pierwsze ładowanie: pełny widok
+        view.i0 = 0;
+        view.i1 = n;
+      } else {
+        // Odświeżenie: zachowaj zoom, tylko dopasuj zakresy do nowej długości
+        view.i0 = clamp(view.i0, 0, n - 2);
+        view.i1 = clamp(view.i1, view.i0 + 2, n);
+        // Jeśli były ustawione na pełny widok (100%) — zostań przy końcu danych
+        if (view.i1 === n) {
+          // nic — koniec danych, ok
+        }
+      }
+      syncSlidersFromView();
+      fitY();
+      updateTimelineInfo();
+    }
+  } catch (e) {
+    console.warn("loadChartData error:", e);
+  }
+}
+
+async function loadIndicatorData() {
+  try {
+    const res  = await fetch(`/api/indicator-history?symbol=${encodeURIComponent(symbol)}&_=${Date.now()}`);
+    const json = await res.json();
+    if (json?.rows?.length) {
+      indRows = json.rows.sort((a, b) => a.tsMs - b.tsMs);
+    }
+  } catch (e) {
+    console.warn("loadIndicatorData error:", e);
+  }
+}
+
+async function loadBotUi() {
+  try {
+    const res  = await fetch(`/api/bot-ui?_=${Date.now()}`);
+    const json = await res.json();
+    botUi = json;
+    updateStatePanel();
+    updateEventLog();
+    const staleSec = (Date.now() - safeNum(json?.payload?.ts, 0)) / 1000;
+    liveTagEl.className = "liveTag" + (staleSec > 30 ? " stale" : "");
+    liveTagEl.textContent = staleSec > 30 ? `stale ${Math.round(staleSec)}s` : "LIVE";
+  } catch (e) {
+    liveTagEl.className = "liveTag stale";
+    liveTagEl.textContent = "offline";
+  }
+}
+
+async function loadAll() {
+  await Promise.all([loadChartData(), loadIndicatorData(), loadBotUi()]);
+  schedDraw();
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE PANEL UPDATE
+// ═══════════════════════════════════════════════════════════
+function updateStatePanel() {
+  const imp = botUi?.payload?.impulse;
+  if (!imp) return;
+
+  const sevUp = safeNum(imp.severityUp, 0);
+  const sevDn = safeNum(imp.severityDown, 0);
+  const dir   = safeNum(imp.activeDirection, 0);
+  const defer = safeNum(imp.deferredQuote, 0);
+
+  function cls(v) {
+    if (v >= ACTIVATION_THRESHOLD * 1.3) return "hot";
+    if (v >= ACTIVATION_THRESHOLD)       return "warm";
+    if (v >= ACTIVATION_THRESHOLD * 0.6) return "cool";
+    return "calm";
+  }
+
+  document.getElementById("svUp").className  = "sv " + cls(sevUp);
+  document.getElementById("svUp").textContent = fmtPct(sevUp);
+  document.getElementById("svDn").className  = "sv " + cls(sevDn);
+  document.getElementById("svDn").textContent = fmtPct(sevDn);
+
+  const dirEl = document.getElementById("svDir");
+  dirEl.textContent = dir > 0 ? "↑ UP (dusi SELL)" : dir < 0 ? "↓ DOWN (dusi BUY)" : "SPOKÓJ";
+  dirEl.className   = "sv " + (dir !== 0 ? "hot" : "calm");
+
+  document.getElementById("svDeferred").textContent = `${defer.toFixed(2)} USDT`;
+  document.getElementById("svDeferred").className   = "sv " + (defer > 0.01 ? "warm" : "calm");
+
+  const evts = imp.recentEvents || [];
+  if (evts.length > 0) {
+    const last = evts[evts.length - 1];
+    document.getElementById("svLastEvt").textContent = `${fmtEvtType(last.type)} ${last.side || ""} ${last.severity ? ("sev=" + safeNum(last.severity, 0).toFixed(2)) : ""}`;
+  }
+}
+
+function updateEventLog() {
+  const imp  = botUi?.payload?.impulse;
+  const evts = [...(imp?.recentEvents || [])].reverse();
+  const el   = document.getElementById("evtList");
+  el.innerHTML = evts.slice(0, 40).map((e) => {
+    const typeClass = String(e.type || "").replace(/[^A-Z_]/g, "");
+    return `<div class="evtRow">
+      <span class="et">${fmtTs(e.ts).split(" ")[1] || "—"}</span>
+      <span class="etp ${typeClass}">${fmtEvtType(e.type)}</span>
+      <span class="ed">${e.side || ""} px=${fmt2(e.price)} sev=${safeNum(e.severity,0).toFixed(2)} tPct=${safeNum(e.throttlePct,0).toFixed(2)}${e.skipReason ? " skip="+e.skipReason : ""}</span>
+    </div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESIZE OBSERVER
+// ═══════════════════════════════════════════════════════════
+const ro = new ResizeObserver(() => schedDraw());
+ro.observe(document.getElementById("chartWrap"));
+
+// ═══════════════════════════════════════════════════════════
+// POLLING
+// ═══════════════════════════════════════════════════════════
+loadAll();
+setInterval(loadBotUi,       POLL_MS);
+setInterval(loadIndicatorData, POLL_MS * 2);
+setInterval(async () => { await loadChartData(); schedDraw(); }, CHART_POLL_MS);
+</script>
+</body>
+</html>

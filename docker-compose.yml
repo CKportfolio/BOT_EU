@@ -1,0 +1,25 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bybit-eu-grid-bot
+    restart: unless-stopped
+    env_file:
+      - ${BOT_ENV_FILE:-./.env}
+    ports:
+      - "${UI_BIND_HOST:-127.0.0.1}:${HOST_UI_PORT:-8787}:${UI_PORT:-8787}"
+    volumes:
+      - bot-logs:/app/scripts/logs
+      - bot-csv:/app/CSV
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  bot-logs:
+  bot-csv:

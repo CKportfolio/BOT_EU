@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Historia transakcji – Bot 8.0</title>
+  <style>
+    body { margin: 0; font-family: system-ui, Arial; background: #000; color: #e8eef7; }
+    .wrap { padding: 10px; }
+    .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    select, button {
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: #101a29;
+      color: #e8eef7;
+      padding: 0 10px;
+    }
+    button { cursor: pointer; }
+    button:hover { background: #1a2a3f; }
+    .panel {
+      background: #04180f;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 12px; font-size: 13px; }
+    .summary div { display: flex; justify-content: space-between; gap: 8px; }
+    .summary b { color: #cfe9ff; }
+    .summary .profit-positive { color: #8bf0a3; font-weight: 700; }
+    .summary .profit-negative { color: #ff9393; font-weight: 700; }
+    .filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; font-size: 13px; }
+    .filter-row label { color: #9eb8d4; }
+    .filter-row select { height: 28px; font-size: 12px; }
+    .tableWrap { overflow: auto; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); max-height: 75vh; }
+    table { width: 100%; border-collapse: collapse; min-width: 1100px; font-size: 12px; }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #0f1f33;
+      color: #d6ebff;
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th:hover { background: #1a2d44; }
+    tbody td {
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap;
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+    .buy { color: #8bf0a3; font-weight: 700; }
+    .sell { color: #ff9393; font-weight: 700; }
+    .loop { color: #ffdd57; }
+    .grid { color: #9eb8d4; }
+    .counter { color: #b8a0ff; }
+    .profit-pos { color: #8bf0a3; }
+    .profit-neg { color: #ff6b6b; }
+    .muted { opacity: .6; }
+    .total-row { background: #0a1e2e; font-weight: 700; border-top: 2px solid rgba(255,255,255,0.2); }
+    .total-row td { padding: 10px 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <b style="color:#cfe9ff;">Historia transakcji — bieżący run</b>
+      <button id="btnReload" type="button">Odśwież</button>
+      <a href="/channels_demo.html" style="color:#9ed0ff; text-decoration:none;">← Powrót do wykresu</a>
+    </div>
+
+    <div class="panel">
+      <div id="summary" class="summary"></div>
+    </div>
+
+    <div class="filter-row">
+      <label>Filtr side:</label>
+      <select id="filterSide"><option value="">all</option><option value="Buy">Buy</option><option value="Sell">Sell</option></select>
+      <label>Filtr kind:</label>
+      <select id="filterKind"><option value="">all</option><option value="LOOP">LOOP</option><option value="GRID">GRID</option><option value="COUNTER">COUNTER</option></select>
+    </div>
+
+    <div class="tableWrap">
+      <table>
+        <thead><tr id="theadRow"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const btnReloadEl = document.getElementById('btnReload');
+const summaryEl = document.getElementById('summary');
+const theadRowEl = document.getElementById('theadRow');
+const tbodyEl = document.getElementById('tbody');
+const filterSideEl = document.getElementById('filterSide');
+const filterKindEl = document.getElementById('filterKind');
+
+let currentHeaders = [];
+let currentRows = [];
+
+async function fetchJson(url) {
+  const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now());
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+function renderSummary(summary) {
+  summaryEl.innerHTML = '';
+  const obj = summary && typeof summary === 'object' ? summary : {};
+  const keys = Object.keys(obj);
+  if (!keys.length) {
+    summaryEl.innerHTML = '<div class="muted">Brak podsumowania</div>';
+    return;
+  }
+
+  const labelMap = {
+    total_fills: 'Fills total',
+    buy_fills: 'Buy fills',
+    sell_fills: 'Sell fills',
+    loop_fills: 'Loop fills',
+    grid_fills: 'Grid fills',
+    counter_fills: 'Counter fills',
+    total_profit_quote: 'Total Profit (USDT)',
+    profitable_loops: 'Profitable loops',
+    unprofitable_loops: 'Unprofitable loops',
+    total_volume_quote: 'Total volume (USDT)',
+    avg_profit_per_loop: 'Avg profit/loop',
+    started_at: 'Started',
+    ended_at: 'Ended',
+    market: 'Market',
+    mode: 'Mode',
+  };
+
+  const priority = [
+    'total_profit_quote', 'total_fills', 'buy_fills', 'sell_fills',
+    'loop_fills', 'grid_fills', 'counter_fills',
+    'profitable_loops', 'unprofitable_loops', 'avg_profit_per_loop',
+    'total_volume_quote', 'market', 'started_at',
+  ];
+
+  const orderedKeys = [...priority.filter(k => k in obj), ...keys.filter(k => !priority.includes(k))];
+
+  for (const k of orderedKeys) {
+    const row = document.createElement('div');
+    const label = labelMap[k] || k;
+    let valueClass = '';
+
+    if (k === 'total_profit_quote') {
+      const n = Number(obj[k]);
+      valueClass = Number.isFinite(n) ? (n >= 0 ? 'profit-positive' : 'profit-negative') : '';
+    }
+
+    row.innerHTML = '<span>' + label + '</span><b class="' + valueClass + '">' + String(obj[k] ?? '') + '</b>';
+    summaryEl.appendChild(row);
+  }
+}
+
+function renderTable(headers, rows) {
+  theadRowEl.innerHTML = '';
+  tbodyEl.innerHTML = '';
+
+  const hdr = Array.isArray(headers) ? headers : [];
+  const data = Array.isArray(rows) ? rows : [];
+
+  if (!hdr.length) {
+    theadRowEl.innerHTML = '<th>Brak danych</th>';
+    return;
+  }
+
+  const labelMap = {
+    ts: 'Timestamp',
+    market: 'Market',
+    side: 'Side',
+    kind: 'Typ',
+    price: 'Fill Price',
+    qty_base: 'Qty',
+    quote_amount: 'Notional (USDT)',
+    profit_quote: 'Loop Profit',
+    retain_pct: 'Retain%',
+    step_pct: 'Step%',
+    momentum_mult: 'Mom Mult',
+    order_id: 'Order ID',
+    mode: 'Mode',
+    zone: 'Zone',
+    regime: 'Regime',
+    counter_status: 'Ctr Status',
+    counter_side: 'Ctr Side',
+    counter_price: 'Ctr Price',
+    counter_qty: 'Ctr Qty',
+    counter_reason: 'Ctr Reason',
+    reason_codes: 'Reasons',
+  };
+
+  const ordered = [
+    'ts', 'side', 'kind', 'price', 'qty_base', 'quote_amount', 'profit_quote',
+    'retain_pct', 'step_pct', 'momentum_mult',
+    'mode', 'zone', 'regime',
+    'counter_status', 'counter_side', 'counter_price', 'counter_qty', 'counter_reason',
+    'reason_codes',
+    'order_id',
+  ];
+
+  const cols = ordered.filter((c) => hdr.includes(c));
+
+  // Apply filters
+  const filterSide = filterSideEl.value;
+  const filterKind = filterKindEl.value;
+  const filtered = data.filter(r => {
+    if (filterSide && String(r.side || '') !== filterSide) return false;
+    if (filterKind && !String(r.kind || '').toUpperCase().includes(filterKind)) return false;
+    return true;
+  });
+
+  cols.forEach((h) => {
+    const th = document.createElement('th');
+    th.textContent = labelMap[h] || h;
+    th.dataset.col = h;
+    theadRowEl.appendChild(th);
+  });
+
+  // Compute running profit total
+  let runningProfit = 0;
+
+  filtered.forEach((r) => {
+    const tr = document.createElement('tr');
+    cols.forEach((h) => {
+      const td = document.createElement('td');
+      let val = r?.[h] ?? '';
+
+      if (h === 'side') {
+        const low = String(val).toLowerCase();
+        if (low === 'buy') td.className = 'buy';
+        if (low === 'sell') td.className = 'sell';
+      } else if (h === 'kind') {
+        const up = String(val).toUpperCase();
+        if (up.includes('LOOP')) td.className = 'loop';
+        else if (up.includes('COUNTER')) td.className = 'counter';
+        else td.className = 'grid';
+      } else if (h === 'profit_quote') {
+        const n = Number(val);
+        if (Number.isFinite(n) && n !== 0) {
+          td.className = n > 0 ? 'profit-pos' : 'profit-neg';
+          val = n.toFixed(6);
+          runningProfit += n;
+        } else {
+          td.className = 'muted';
+          val = val || '-';
+        }
+      } else if (h === 'price' || h === 'counter_price') {
+        const n = Number(val);
+        if (Number.isFinite(n)) val = n.toFixed(6);
+      } else if (h === 'qty_base' || h === 'counter_qty') {
+        const n = Number(val);
+        if (Number.isFinite(n)) val = n.toFixed(8);
+      } else if (h === 'quote_amount') {
+        const n = Number(val);
+        if (Number.isFinite(n)) val = n.toFixed(4);
+      } else if (h === 'retain_pct' || h === 'step_pct' || h === 'momentum_mult') {
+        const n = Number(val);
+        if (Number.isFinite(n)) val = n.toFixed(4);
+      } else if (h === 'ts') {
+        if (val && val.length > 19) val = val.substring(0, 19).replace('T', ' ');
+      }
+
+      td.textContent = String(val);
+      tr.appendChild(td);
+    });
+    tbodyEl.appendChild(tr);
+  });
+
+  // Add totals row
+  if (filtered.length > 0) {
+    const tr = document.createElement('tr');
+    tr.className = 'total-row';
+    cols.forEach((h) => {
+      const td = document.createElement('td');
+      if (h === 'ts') {
+        td.textContent = 'SUMA (' + filtered.length + ' filli)';
+      } else if (h === 'profit_quote') {
+        td.textContent = runningProfit.toFixed(6);
+        td.className = runningProfit >= 0 ? 'profit-pos' : 'profit-neg';
+      } else if (h === 'quote_amount') {
+        const totalVol = filtered.reduce(function(s, r) { return s + (Number(r.quote_amount) || 0); }, 0);
+        td.textContent = totalVol.toFixed(4);
+      } else {
+        td.textContent = '';
+      }
+      tr.appendChild(td);
+    });
+    tbodyEl.appendChild(tr);
+  }
+}
+
+async function loadHistory() {
+  const payload = await fetchJson('/api/trade-history');
+  renderSummary(payload?.summary || {});
+  currentHeaders = payload?.headers || [];
+  currentRows = payload?.rows || [];
+  renderTable(currentHeaders, currentRows);
+}
+
+function applyFilters() {
+  renderTable(currentHeaders, currentRows);
+}
+
+async function init() {
+  try {
+    await loadHistory();
+  } catch (e) {
+    summaryEl.innerHTML = '<div class="muted">Błąd ładowania: ' + (e?.message || e) + '</div>';
+  }
+}
+
+btnReloadEl.addEventListener('click', function() { init().catch(function() {}); });
+filterSideEl.addEventListener('change', applyFilters);
+filterKindEl.addEventListener('change', applyFilters);
+
+init().catch(function() {});
+</script>
+</body>
+</html>
