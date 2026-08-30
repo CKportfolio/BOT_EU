@@ -190,6 +190,34 @@ scripts/
 └── js/                    # panel i obserwacja rynku
 ```
 
+## Quality gates
+
+Repozytorium posiada automatyczny pipeline GitHub Actions uruchamiany dla pushy i Pull Requestów.
+
+CI sprawdza:
+
+- instalację zależności przez `npm ci`,
+- składnię plików JavaScript,
+- testy jednostkowe parsera symboli i zaokrągleń giełdowych,
+- testy fee guard i budowy grida,
+- testy pracy silnika gridowego z klastrami cenowymi,
+- testy PAPER execution: rezerwacje, fill BUY/SELL, fee i anulowanie zleceń,
+- podatności zależności `high/critical` przez `npm audit`,
+- możliwość zbudowania produkcyjnego obrazu Docker.
+
+Testy CI **nie używają kluczy API i nie składają rzeczywistych zleceń**. `LIVE` pozostaje poza automatycznym pipeline.
+
+Lokalnie:
+
+```bash
+npm test
+npm run check:syntax
+```
+
+## License
+
+Kod jest publicznie dostępny do celów portfolio, edukacyjnych i technicznego review. Szczegóły: [LICENSE](LICENSE).
+
 ## Status
 
 **Portfolio / active development project**
