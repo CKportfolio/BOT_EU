@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "axios": "^1.7.9",
-    "bybit-api": "^4.6.4",
+    "bybit-api": "^4.7.5",
     "dotenv": "^16.4.5"
   }
 }
